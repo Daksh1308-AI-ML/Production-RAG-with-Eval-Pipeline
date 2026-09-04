@@ -1,0 +1,39 @@
+# Core LangChain
+langchain
+langchain-community
+langchain-core
+
+# Ollama Integration
+langchain-ollama
+
+# Qdrant Vector Store
+qdrant-client
+langchain-qdrant
+
+# Document Processing
+sec-edgar-downloader
+beautifulsoup4
+pypdf
+lxml
+
+# Retrieval
+rank-bm25
+
+# Reranking
+sentence-transformers
+
+# Evaluation
+ragas==0.4.3
+
+# Testing
+pytest
+
+# UI
+streamlit
+
+# Monitoring
+langfuse
+
+# Utilities
+python-dotenv
+pydantic>=2.0.0
