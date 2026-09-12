@@ -24,7 +24,7 @@ class SECIngestor:
         results = {}
         downloader = Downloader(
             company_name=config.sec.company_name,
-            email=config.sec.email,
+            email_address=config.sec.email,
             download_folder=str(self.data_dir)
         )
         
@@ -47,11 +47,16 @@ class SECIngestor:
     
     def parse_filing(self, filepath: Path) -> Dict:
         """Parse a single filing HTML file."""
-        with open(filepath, "r", encoding="utf-8") as f:
-            soup = BeautifulSoup(f.read(), "html.parser")
-        
-        # Remove scripts and styles
-        for tag in soup(["script", "style"]):
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            raw = f.read()
+
+        # SEC header block contains filing metadata
+        start = raw.find("<SEC-HEADER>")
+        end = raw.find("</SEC-HEADER>")
+        header = raw[start:end] if 0 <= start < end else ""
+
+        soup = BeautifulSoup(raw, "html.parser")
+        for tag in soup(["script", "style", "sec-header"]):
             tag.decompose()
         
         # Extract text
@@ -60,9 +65,9 @@ class SECIngestor:
         # Clean text
         text = self._clean_text(text)
         
-        # Extract metadata
-        metadata = self._extract_metadata(filepath, text)
-        
+# Extract metadata
+        metadata = self._extract_metadata(filepath, text, header)
+
         return {
             "content": text,
             "metadata": metadata,
@@ -80,14 +85,20 @@ class SECIngestor:
         
         return text.strip()
     
-    def _extract_metadata(self, filepath: Path, text: str) -> Dict:
+    def _extract_metadata(self, filepath: Path, text: str, header: str = "") -> Dict:
         """Extract metadata from filing."""
-        # Parse ticker from path
-        ticker = filepath.parent.name.upper()
-        
-        # Extract filing date (simplified)
-        date_match = re.search(r'Filed:?\s*(\d{4}-\d{2}-\d{2})', text)
-        filing_date = date_match.group(1) if date_match else "unknown"
+        # Ticker from sec-edgar-filings/<TICKER>/10-K/<accession>/file.txt
+        try:
+            ticker = filepath.parts[-4].upper()
+        except (IndexError, AttributeError):
+            ticker = "UNKNOWN"
+
+        # Extract fiscal period / filing date from SEC header
+        date_match = re.search(r'(?:CONFORMED PERIOD OF REPORT|FILED AS OF DATE):\s*(\d{8})', header)
+        filing_date = "unknown"
+        if date_match:
+            d = date_match.group(1)
+            filing_date = f"{d[0:4]}-{d[4:6]}-{d[6:8]}"
         
         # Extract section (simplified)
         section = "general"
@@ -110,14 +121,13 @@ class SECIngestor:
     def load_all_filings(self) -> List[Dict]:
         """Load and parse all downloaded filings."""
         all_filings = []
-        
-        for ticker_dir in self.data_dir.iterdir():
-            if ticker_dir.is_dir():
-                for filepath in ticker_dir.rglob("*.htm"):
-                    try:
-                        filing = self.parse_filing(filepath)
-                        all_filings.append(filing)
-                    except Exception as e:
-                        print(f"Error parsing {filepath}: {e}")
+        extensions = (".htm", ".html", ".txt")
+        for filepath in self.data_dir.rglob("*"):
+            if filepath.is_file() and filepath.suffix.lower() in extensions:
+                try:
+                    filing = self.parse_filing(filepath)
+                    all_filings.append(filing)
+                except Exception as e:
+                    print(f"Error parsing {filepath}: {e}")
         
         return all_filings

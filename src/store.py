@@ -44,32 +44,39 @@ class VectorStore:
     
     def upsert_documents(self, chunks: List[Document]) -> int:
         """Upsert document chunks to Qdrant."""
+        # Embed in batches (one HTTP call per batch instead of per chunk)
+        batch_size = 200
         points = []
-        for chunk in chunks:
-            # Generate embedding
-            embedding = self.embeddings.embed_query(chunk.page_content)
-            
-            # Create point
-            point = PointStruct(
-                id=str(uuid4()),
-                vector=embedding,
-                payload={
-                    "content": chunk.page_content,
-                    "metadata": chunk.metadata
-                }
+        for i in range(0, len(chunks), batch_size):
+            batch_docs = chunks[i:i + batch_size]
+            embeddings = self.embeddings.embed_documents(
+                [d.page_content for d in batch_docs]
             )
-            points.append(point)
-        
-        # Upsert in batches
-        batch_size = 100
-        for i in range(0, len(points), batch_size):
-            batch = points[i:i + batch_size]
+            for chunk, embedding in zip(batch_docs, embeddings):
+                points.append(PointStruct(
+                    id=str(uuid4()),
+                    vector=embedding,
+                    payload={
+                        "content": chunk.page_content,
+                        "metadata": chunk.metadata
+                    }
+                ))
+
+            # Upsert in batches
+            if len(points) >= batch_size:
+                self.client.upsert(
+                    collection_name=self.collection_name,
+                    points=points
+                )
+                points = []
+
+        if points:
             self.client.upsert(
                 collection_name=self.collection_name,
-                points=batch
+                points=points
             )
-        
-        return len(points)
+
+        return len(chunks)
     
     def search(
         self,
@@ -95,19 +102,21 @@ class VectorStore:
             query_filter = Filter(must=conditions)
         
         # Search
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_embedding,
+            query=query_embedding,
             limit=k,
             query_filter=query_filter
-        )
+        ).points
         
         # Convert to Documents
         documents = []
         for result in results:
+            metadata = dict(result.payload.get("metadata", {}))
+            metadata["score"] = result.score
             doc = Document(
                 page_content=result.payload["content"],
-                metadata=result.payload["metadata"]
+                metadata=metadata
             )
             documents.append(doc)
         

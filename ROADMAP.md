@@ -14,14 +14,14 @@
 ### Day 1-2: Project Setup
 
 **Tasks**:
-- [ ] Create project structure
-- [ ] Set up Python virtual environment
-- [ ] Install dependencies (requirements.txt)
-- [ ] Configure Docker Compose (Qdrant + Ollama)
-- [ ] Pull Ollama models (qwen2.5:7b, nomic-embed-text)
-- [ ] Create .env file from .env.example
-- [ ] Initialize git repository
-- [ ] Create config.py with all configurations
+- [x] Create project structure
+- [x] Set up Python virtual environment
+- [x] Install dependencies (requirements.txt)
+- [x] Configure Docker Compose (Qdrant + Ollama)
+- [x] Pull Ollama models (qwen2.5:7b, nomic-embed-text)
+- [x] Create .env file
+- [x] Initialize git repository
+- [x] Create config.py with all configurations
 
 **Deliverables**:
 - Working dev environment
@@ -43,11 +43,11 @@ python -c "from src.config import config; print(config)"
 ### Day 3-4: SEC Data Ingestion
 
 **Tasks**:
-- [ ] Implement SECIngestor class
-- [ ] Download 10-K filings for AAPL, MSFT, GOOGL, AMZN, NVDA
-- [ ] Parse HTML/XML to clean text
-- [ ] Extract metadata (company, date, section)
-- [ ] Store processed documents in data/processed/
+- [x] Implement SECIngestor class
+- [x] Download 10-K filings for AAPL, MSFT, GOOGL, AMZN, NVDA
+- [x] Parse HTML/XML to clean text
+- [x] Extract metadata (company, date, section)
+- [x] Store processed documents in data/processed/
 
 **Deliverables**:
 - 15 clean 10-K filings (5 companies × 3 years)
@@ -66,14 +66,14 @@ python -c "from src.ingest import SECIngestor; i = SECIngestor(); print(i.downlo
 ### Day 5-7: Chunking, Embedding, Basic Retrieval
 
 **Tasks**:
-- [ ] Implement DocumentChunker class
-- [ ] Implement EmbeddingGenerator class
-- [ ] Implement VectorStore class
-- [ ] Create Qdrant collection
-- [ ] Chunk and embed all documents
-- [ ] Store in Qdrant
-- [ ] Implement basic dense retrieval
-- [ ] Test with sample queries
+- [x] Implement DocumentChunker class
+- [x] Implement EmbeddingGenerator class
+- [x] Implement VectorStore class
+- [x] Create Qdrant collection
+- [x] Chunk and embed all documents
+- [x] Store in Qdrant
+- [x] Implement basic dense retrieval
+- [x] Test with sample queries
 
 **Deliverables**:
 - Chunked documents with embeddings
@@ -95,21 +95,21 @@ print(f'Retrieved {len(results)} documents')
 ```
 
 ### Week 1 Deliverables Checklist
-- [ ] Project structure created
-- [ ] Docker containers running (Qdrant + Ollama)
-- [ ] SEC filings downloaded and parsed
-- [ ] Documents chunked (1000 chars, 200 overlap)
-- [ ] Embeddings generated and stored in Qdrant
-- [ ] Basic dense retrieval working
-- [ ] Basic RAG chain functional
+- [x] Project structure created
+- [x] Docker containers running (Qdrant + Ollama)
+- [x] SEC filings downloaded and parsed
+- [x] Documents chunked (1000 chars, 200 overlap)
+- [x] Embeddings generated and stored in Qdrant
+- [x] Basic dense retrieval working
+- [x] Basic RAG chain functional
 
 ### Week 1 Metrics
 | Metric | Target | Actual |
 |--------|--------|--------|
-| Documents downloaded | 15 | |
-| Chunks created | ~5,000 | |
-| Embedding latency | <100ms | |
-| Retrieval latency | <200ms | |
+| Documents downloaded | 15 | 15 |
+| Chunks created | ~5,000 | 39,565 |
+| Embedding latency | <100ms | ~52 chunks/s bulk (~19ms/chunk) |
+| Retrieval latency | <200ms | 68–102ms per query (first query 2.2s, cold embed) |
 
 ---
 
@@ -466,9 +466,9 @@ git push origin main
 ## Success Criteria
 
 ### Week 1 Success
-- [ ] Environment working
-- [ ] Data ingested
-- [ ] Basic RAG functional
+- [x] Environment working
+- [x] Data ingested
+- [x] Basic RAG functional
 
 ### Week 2 Success
 - [ ] Hybrid retrieval working
