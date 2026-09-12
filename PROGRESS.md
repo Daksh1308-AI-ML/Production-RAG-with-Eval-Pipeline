@@ -63,6 +63,19 @@
 - `src/store.py` — migrated Qdrant `search()` → `query_points()` (v1.19 API removed `client.search`); scores attached to result metadata
 - `tests/test_retrieve.py` — integration tests (skip when Qdrant/Ollama down): collection count 39565, k-doc search with scores, metadata filter. **5/5 tests pass**
 
+### Week 2: Hybrid Retrieval + Reranking (validated)
+- `scripts/validate_hybrid.py` — BM25 + dense RRF + `bge-reranker-base` on 6 sample queries: **PASS** (all ticker checks clean, `RESULT: PASS`)
+  - Full run ~2 min on CPU: BM25 60–130ms, dense 75ms–2.2s, hybrid 130–190ms, rerank 2.0–4.8s
+  - Fixed first-run model download stall: pre-fetch only the files the app needs via `snapshot_download(allow_patterns=...)` — a full fetch of `ms-marco-MiniLM-L6-v2` pulls ~865 MB of redundant ONNX/OpenVINO/Flax/PyTorch copies and deadlocks (CloseWait socket) on slow Hugging Face connections
+  - Verified cached loads: `bge-reranker-base` ~12–15s (~1.1 GB), `cross-encoder/ms-marco-MiniLM-L6-v2` ~11s; pre-download recipe documented in `README.md` §5
+
+### Week 2: Advanced Retrieval (validated)
+- `src/retrieve.py` — replaced `EnsembleRetriever` (silently dropped results below `k`, ignored `filter_metadata`) with 8-line manual weighted RRF; added `retrieve_multi()` for query-expansion fusion
+- `src/rag.py` — query rewriting now feeds `retrieve_multi` (rewritten queries + original fused via RRF) instead of retrieving on the original query only
+- `scripts/validate_hybrid.py` — now covers the rewrite path: 6 ticker queries + 1 ambiguous rewrite query; `Reranker(model_name=...)` override
+- Full Week 2 run **PASS**: hybrid 115–183ms (target <300ms), exactly 20 docs returned (old bug: 13–18); rewrite via Ollama 13.7s; rerank 0.34–0.58s (`ms-marco-MiniLM-L6-v2`) / 2–4.8s (`bge-reranker-base`)
+- Rerank compression = `Reranker` top-20 → top-5; separate LangChain compression wrapper skipped (YAGNI)
+
 ### Verification
 - All 13 source modules import without errors
 - `tests/` pass (5/5): `test_config_initialization`, `test_ingestor_initialization`, `test_collection_populated`, `test_dense_search_returns_k_docs`, `test_metadata_filter` (pytest 9.1.1)
@@ -72,9 +85,7 @@
 
 ## Pending / Next Steps
 
-- [ ] **Week 2:** Validate hybrid retrieval (BM25 + dense RRF), query rewriting, and reranking (`bge-reranker-base` needs ~1GB download on first use)
-    - Requires persisting/reloading chunks for the BM25 index (currently rebuilt on the fly from `filings.json`)
-    - Fix `retrieve.py:51` — ensemble path ignores `k`/`filter_metadata`
+- [ ] **Week 3:** RAGAS evaluation (Week 2 hybrid retrieval + reranking complete — see Completed)
 - [ ] Run RAGAS evaluation, generate `data/evaluation/eval_dataset.json`
 - [ ] Build Streamlit UI (`app/streamlit_app.py` placeholder only)
 - [ ] Optional: enable Langfuse monitoring

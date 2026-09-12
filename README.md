@@ -82,7 +82,27 @@ python -c "from src.chunker import DocumentChunker; from src.store import Vector
 
 The first ingestion embeds ~40,000 chunks with `nomic-embed-text` on CPU — allow ~1–3 hours. Files land in `data/sec_filings/` and `data/processed/`.
 
-### 5. Run the app
+### 5. Pre-download reranker models
+
+Reranker weights download lazily on first use. Pre-fetch them to avoid a slow, easy-to-hang first run — a full `snapshot_download` pulls every file in the repo (e.g. `ms-marco-MiniLM-L6-v2` ships ~865 MB of redundant ONNX/OpenVINO/Flax/PyTorch copies):
+
+```python
+from huggingface_hub import snapshot_download
+
+# ~1.1 GB BERT weights (single file, fetched as-is)
+snapshot_download("BAAI/bge-reranker-base")
+
+# cross-encoder: only config + weights + tokenizer, skip the 16 redundant copies
+snapshot_download("cross-encoder/ms-marco-MiniLM-L6-v2", allow_patterns=[
+    "config.json", "model.safetensors",
+    "tokenizer.json", "tokenizer_config.json",
+    "special_tokens_map.json", "vocab.txt",
+])
+```
+
+Verified CPU load times once cached: `bge-reranker-base` ~12–15s, `ms-marco-MiniLM-L6-v2` ~11s.
+
+### 6. Run the app
 
 ```bash
 streamlit run app/streamlit_app.py

@@ -11,9 +11,9 @@ from .config import config
 class Reranker:
     """Rerank retrieved documents."""
     
-    def __init__(self):
+    def __init__(self, model_name: str = None):
         self.cross_encoder = HuggingFaceCrossEncoder(
-            model_name=config.reranker.model_name
+            model_name=model_name or config.reranker.model_name
         )
     
     def rerank(

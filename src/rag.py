@@ -44,12 +44,14 @@ class RAGPipeline:
         with self.tracer.trace("rag_query") as trace:
             # Step 1: Query rewriting
             rewritten_queries = None
+            queries = [user_query]
             if self.query_rewriter.should_rewrite(user_query):
                 rewritten_queries = self.query_rewriter.rewrite(user_query)
+                queries = queries + rewritten_queries
                 trace.set_attribute("query_rewritten", True)
             
-            # Step 2: Retrieval
-            documents = self.retriever.retrieve(user_query)
+            # Step 2: Retrieval (all queries fused via RRF)
+            documents = self.retriever.retrieve_multi(queries)
             trace.set_attribute("retrieval_count", len(documents))
             
             # Step 3: Reranking
