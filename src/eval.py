@@ -275,7 +275,12 @@ def main() -> int:
     for strategy, r in results.items():
         details = r.get("details")
         if details is not None:
-            details.save_to_json(out_dir / f"{strategy}_detailed.json")
+            details.to_pandas().to_json(
+                out_dir / f"{strategy}_detailed.json",
+                orient="records",
+                indent=2,
+                force_ascii=False,
+            )
         else:
             (out_dir / f"{strategy}_detailed.json").write_text(
                 '{"error": "judge failed to parse; metrics recorded as NaN"}',

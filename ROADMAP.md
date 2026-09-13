@@ -234,9 +234,9 @@ print(f'Reranked to {len(reranked)} documents')
 **Tasks**:
 - [x] Implement RAGEvaluator class
 - [x] Configure judge model (Ollama `qwen2.5:7b` by default; free OpenAI-compatible API via `JUDGE_*` vars)
-- [ ] Create evaluation dataset template
-- [ ] Write 30 initial QA pairs
-- [ ] Test RAGAS integration
+- [x] Create evaluation dataset template (`scripts/build_eval_dataset.py` → `data/evaluation/eval_dataset.json`)
+- [x] Write 30 initial QA pairs (5 tickers × 6; factual + analytical, easy/medium/hard)
+- [x] Test RAGAS integration (smoke eval: `python -m src.eval --limit 2 --strategies baseline --metrics faithfulness` → baseline faithfulness **0.67** via pinned OpenRouter judge `nvidia/nemotron-3-super-120b-a12b:free`)
 
 **Deliverables**:
 - RAGEvaluator class working
