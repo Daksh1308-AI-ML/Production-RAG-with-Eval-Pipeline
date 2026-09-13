@@ -29,6 +29,7 @@ build/
 # Data (too large for git)
 data/sec_filings/
 data/processed/
+data/evaluation/
 *.pdf
 
 # Vector stores

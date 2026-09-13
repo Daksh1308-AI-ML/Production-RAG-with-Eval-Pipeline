@@ -172,6 +172,7 @@ graph TB
 |-----------|-----------|---------|---------|
 | LLM | Ollama + qwen2.5:7b | 0.5.7+ | Answer generation |
 | Embeddings | Ollama + nomic-embed-text | 0.5.7+ | Vector creation |
+| Eval Judge | Ollama qwen2.5:7b (default) or free OpenAI-compatible API (`JUDGE_*`) | 0.5.7+ | RAGAS metric judging |
 | Vector DB | Qdrant | 1.13.0 | Vector storage |
 | Framework | LangChain | 0.3.18 | Orchestration |
 | Evaluation | RAGAS | Latest | Quality metrics |

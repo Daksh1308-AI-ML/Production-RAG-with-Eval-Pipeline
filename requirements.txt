@@ -6,6 +6,9 @@ langchain-core
 # Ollama Integration
 langchain-ollama
 
+# OpenAI-compatible judge (Groq / OpenRouter / Cerebras / etc.)
+langchain-openai
+
 # Qdrant Vector Store
 qdrant-client
 langchain-qdrant

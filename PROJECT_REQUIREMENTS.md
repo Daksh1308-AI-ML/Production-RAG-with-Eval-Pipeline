@@ -69,7 +69,7 @@ Companies lose millions querying internal documents with inaccurate AI. Simple v
 
 ### FR-8: Evaluation
 - RAGAS framework integration
-- Ollama as judge model for metrics
+- Ollama as judge model for metrics (default; optionally a free hosted API via `JUDGE_MODEL`/`JUDGE_BASE_URL`/`JUDGE_API_KEY`)
 - Automated evaluation pipeline
 - Comparison report generation
 
@@ -119,13 +119,13 @@ Companies lose millions querying internal documents with inaccurate AI. Simple v
 ## Constraints
 
 ### Technical Constraints
-1. **Ollama Local**: All LLM inference runs locally
+1. **Ollama Local**: All LLM inference runs locally (judge may optionally use a free hosted API via `JUDGE_API_KEY`)
 2. **Docker Required**: Qdrant runs in Docker container
 3. **Python 3.11+**: Required for latest LangChain features
 4. **Memory**: 16GB RAM recommended for local models
 
 ### Budget Constraints
-1. **No Cloud APIs**: All inference local via Ollama
+1. **No Cloud APIs**: All inference local via Ollama (judge may optionally use a free hosted OpenAI-compatible API — `JUDGE_API_KEY`; still no paid dependencies)
 2. **Free Tier Only**: Streamlit Cloud free tier
 3. **Open Source Only**: No paid dependencies
 

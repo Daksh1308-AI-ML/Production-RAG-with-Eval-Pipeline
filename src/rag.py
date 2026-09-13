@@ -26,7 +26,15 @@ class RAGResponse:
 class RAGPipeline:
     """Complete RAG pipeline with all components."""
     
-    def __init__(self):
+    def __init__(self, strategy: str = "full"):
+        """strategy: full | rerank | hybrid | baseline.
+
+        full    = rewrite + hybrid + rerank
+        rerank  = hybrid + rerank (no rewrite)
+        hybrid  = hybrid only (no rewrite, no rerank)
+        baseline = dense-only retrieval, no rewrite, no rerank
+        """
+        self.strategy = strategy
         self.query_rewriter = QueryRewriter()
         self.retriever = None
         self.reranker = Reranker()
@@ -42,20 +50,25 @@ class RAGPipeline:
         start_time = time.time()
         
         with self.tracer.trace("rag_query") as trace:
-            # Step 1: Query rewriting
+            # Step 1: Query rewriting (full strategy only)
             rewritten_queries = None
             queries = [user_query]
-            if self.query_rewriter.should_rewrite(user_query):
+            if self.strategy == "full" and self.query_rewriter.should_rewrite(user_query):
                 rewritten_queries = self.query_rewriter.rewrite(user_query)
                 queries = queries + rewritten_queries
                 trace.set_attribute("query_rewritten", True)
             
-            # Step 2: Retrieval (all queries fused via RRF)
-            documents = self.retriever.retrieve_multi(queries)
+            # Step 2: Retrieval (baseline = dense-only, others = hybrid RRF)
+            if self.strategy == "baseline":
+                documents = self.retriever.retrieve_dense_only(user_query)
+            else:
+                documents = self.retriever.retrieve_multi(queries)
             trace.set_attribute("retrieval_count", len(documents))
             
-            # Step 3: Reranking
-            reranked = self.reranker.rerank(user_query, documents)
+            # Step 3: Reranking (full and rerank strategies)
+            reranked = documents
+            if self.strategy in ("full", "rerank"):
+                reranked = self.reranker.rerank(user_query, documents)
             trace.set_attribute("reranked_count", len(reranked))
             
             # Step 4: Generation
@@ -68,7 +81,7 @@ class RAGPipeline:
         # Format sources
         sources = [
             {
-                "content": doc.page_content[:200] + "...",
+                "content": doc.page_content,
                 "source": doc.metadata.get("source", "Unknown"),
                 "section": doc.metadata.get("section", "general")
             }

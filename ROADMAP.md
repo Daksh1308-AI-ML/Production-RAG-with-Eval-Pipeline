@@ -232,8 +232,8 @@ print(f'Reranked to {len(reranked)} documents')
 ### Day 15-16: RAGAS Setup
 
 **Tasks**:
-- [ ] Implement RAGEvaluator class
-- [ ] Configure Ollama as judge model
+- [x] Implement RAGEvaluator class
+- [x] Configure judge model (Ollama `qwen2.5:7b` by default; free OpenAI-compatible API via `JUDGE_*` vars)
 - [ ] Create evaluation dataset template
 - [ ] Write 30 initial QA pairs
 - [ ] Test RAGAS integration

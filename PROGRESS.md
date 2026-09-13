@@ -1,7 +1,7 @@
 # Progress Report
 
 **Project:** Production RAG with Eval Pipeline — SEC 10-K Filings
-**Last updated:** 2026-09-12
+**Last updated:** 2026-09-13
 
 ## Completed
 
@@ -38,6 +38,7 @@
 | `src/utils.py` | Helpers |
 
 - `src/eval.py` rewritten for RAGAS 0.4.3 API (`SingleTurnSample`, `EvaluationDataset`, `evaluate(..., raise_exceptions=True)`)
+- **Judge now configurable** (`src/config.py` + `src/eval.py`): `JUDGE_API_KEY` empty → local Ollama `qwen2.5:7b` judge (unchanged fallback); key set → `ChatOpenAI` against any OpenAI-compatible API (OpenRouter/Groq/Cerebras/etc.) with enforced JSON mode (`response_format: {"type":"json_object"}`), fixing RAGAS's strict `model_validate_json` failures on local qwen's prose/fenced output. Embeddings stay local (Ollama `nomic-embed-text`). `langchain-openai` added to `requirements.txt`. Verified: `ChatOpenAI` branch + `ChatOllama` fallback both construct; `pytest` 2 passed / 3 skipped.
 - `src/ingest.py` fixed for current `sec-edgar-downloader` API (`email_address` kwarg); parses `full-submission.txt` files (the downloader no longer writes `.htm`), strips the SEC header from chunk text, and extracts ticker + filing date from the EDGAR header block
 - `src/store.py` `upsert_documents` now embeds in batches (200/request) instead of per-chunk HTTP calls
 
@@ -45,7 +46,7 @@
 - Docker Desktop running (daemon accessible)
 - Qdrant server `v1.19.0` running on `localhost:6333`
 - `docker/docker-compose.yml` cleaned: removed obsolete `version:`, pinned server `v1.19.0`
-- Ollama serving `qwen2.5:7b` (LLM + judge), `nomic-embed-text` (embeddings)
+- Ollama serving `qwen2.5:7b` (LLM + judge), `nomic-embed-text` (embeddings); judge may alternatively use a free hosted API via `JUDGE_MODEL`/`JUDGE_BASE_URL`/`JUDGE_API_KEY`
 
 ### Data Pipeline (complete)
 - Downloaded 15 SEC 10-K filings (5 tickers × 3 years) to `data/sec_filings/sec-edgar-filings/<TICKER>/10-K/`

@@ -118,6 +118,8 @@ class RerankerConfig:
 class EvalConfig:
     """Evaluation configuration."""
     judge_model: str = "qwen2.5:7b"
+    judge_base_url: str = ""  # hosted OpenAI-compatible judge endpoint (e.g. OpenRouter) when set
+    judge_api_key: str = ""   # empty → local Ollama judge; set → hosted judge via ChatOpenAI
     eval_dataset_path: str = "data/evaluation/eval_dataset.json"
     metrics: tuple = ("faithfulness", "answer_relevancy", "context_precision")
 
@@ -871,6 +873,7 @@ from ragas.metrics import (
 )
 from ragas.dataset_schema import Dataset
 from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langchain_openai import ChatOpenAI
 from .config import config
 
 
@@ -878,11 +881,24 @@ class RAGEvaluator:
     """Evaluate RAG system with RAGAS."""
     
     def __init__(self):
-        self.judge_llm = ChatOllama(
-            model=config.eval.judge_model,
-            temperature=0,
-            base_url=config.ollama.base_url
-        )
+        # JUDGE_API_KEY set → hosted OpenAI-compatible judge with enforced JSON
+        # mode (reliable for ragas' strict model_validate_json); else local Ollama.
+        if config.eval.judge_api_key:
+            self.judge_llm = ChatOpenAI(
+                model=config.eval.judge_model,
+                temperature=0.2,
+                base_url=config.eval.judge_base_url,
+                api_key=config.eval.judge_api_key,
+                model_kwargs={"response_format": {"type": "json_object"}},
+            )
+        else:
+            self.judge_llm = ChatOllama(
+                model=config.eval.judge_model,
+                temperature=0.2,
+                base_url=config.ollama.base_url,
+                format="json",
+                num_ctx=config.ollama.num_ctx,
+            )
         self.judge_embeddings = OllamaEmbeddings(
             model=config.ollama.embedding_model,
             base_url=config.ollama.base_url

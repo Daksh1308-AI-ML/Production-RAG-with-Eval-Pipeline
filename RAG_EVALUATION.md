@@ -429,7 +429,7 @@ def run_ab_tests(evaluator, eval_dataset):
 | Tool | Purpose | Version |
 |------|---------|---------|
 | RAGAS | Evaluation framework | Latest |
-| Ollama | Judge LLM | 0.5.7+ |
+| Judge LLM | Ollama · `qwen2.5:7b` (default) or free OpenAI-compatible API via `JUDGE_MODEL`/`JUDGE_BASE_URL`/`JUDGE_API_KEY` | 0.5.7+ |
 | Langfuse | Monitoring | Latest |
 | Pandas | Data analysis | Latest |
 | Matplotlib | Visualization | Latest |

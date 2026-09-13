@@ -59,6 +59,8 @@ class RerankerConfig:
 class EvalConfig:
     """Evaluation configuration."""
     judge_model: str = os.getenv("JUDGE_MODEL", "qwen2.5:7b")
+    judge_base_url: str = os.getenv("JUDGE_BASE_URL", "")
+    judge_api_key: str = os.getenv("JUDGE_API_KEY", "")
     eval_dataset_path: str = os.getenv("EVAL_DATASET_PATH", "data/evaluation/eval_dataset.json")
     metrics: Tuple[str, ...] = ("faithfulness", "answer_relevancy", "context_precision")
 

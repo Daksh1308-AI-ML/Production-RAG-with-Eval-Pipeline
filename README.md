@@ -8,8 +8,8 @@ A production-grade **Retrieval-Augmented Generation (RAG)** system that answers 
 - **Hybrid retrieval** — BM25 (0.4) + dense vector search (0.6) fused via Reciprocal Rank Fusion (top-20 candidates)
 - **Reranking** — `BAAI/bge-reranker-base` cross-encoder re-ranks top-20 → top-5
 - **Answer generation** — local `qwen2.5:7b` via Ollama, with source attribution and refusal when context is insufficient
-- **RAGAS evaluation** — faithfulness, answer relevancy, context precision/recall, judged locally by Ollama
-- **100% local & open source** — everything runs on your machine via Ollama + Docker; no cloud AI APIs
+- **RAGAS evaluation** — faithfulness, answer relevancy, context precision/recall, judged by local Ollama by default or any free OpenAI-compatible API (OpenRouter/Groq/Cerebras) via `JUDGE_*` env vars
+- **100% local & open source** — everything runs on your machine via Ollama + Docker; no cloud AI APIs (optional: judge may use a free hosted API for evaluation)
 - **Streamlit UI** — chat interface with citations
 - **Langfuse monitoring** — optional tracing (latency, cost, errors)
 
@@ -142,7 +142,9 @@ All settings live in `src/config.py` and read from env vars (loaded from `.env`)
 |----------|---------|---------|
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server |
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Embedding model |
-| `OLLAMA_LLM_MODEL` | `qwen2.5:7b` | Generator + judge |
+| `OLLAMA_LLM_MODEL` | `qwen2.5:7b` | Generator (judge via `JUDGE_*` vars) |
+| `JUDGE_MODEL` | `qwen2.5:7b` | Judge LLM (local Ollama) |
+| `JUDGE_BASE_URL` / `JUDGE_API_KEY` | empty | Hosted judge endpoint (any OpenAI-compatible API, e.g. OpenRouter/Groq). Set key to switch |
 | `QDRANT_HOST` / `QDRANT_PORT` | `localhost` / `6333` | Qdrant connection |
 | `QDRANT_COLLECTION` | `sec_filings` | Collection name |
 | `CHUNK_SIZE` / `CHUNK_OVERLAP` | `1000` / `200` | Chunking |
