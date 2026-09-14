@@ -42,7 +42,10 @@
 - **RAGAS integration tested end-to-end** (smoke): `--limit 2 --strategies baseline --metrics faithfulness` → **baseline faithfulness 0.67** (0.71 on a 3-sample run), full per-sample details exported. Two fixes along the way:
   - `openrouter/free` router **randomizes the model per call**, so ragas' strict two-step schema (string statements, then verdicts) got flaky/non-JSON output (e.g. a `User Safety: safe` preamble) → **pin one model**: `JUDGE_MODEL=nvidia/nemotron-3-super-120b-a12b:free` in `.env`/`.env.example`.
   - `src/eval.py` detail export used non-existent `EvaluationResult.save_to_json` → replaced with `details.to_pandas().to_json(...)` (RAGAS 0.4.3 API).
-- `scripts/build_eval_dataset.py` — eval dataset builder with **30 QA pairs** (5 tickers × 6: easy/medium/hard, factual + analytical), ground truths and `reference_contexts` lifted verbatim from the filings.
+- `scripts/build_eval_dataset.py` — eval dataset builder with **103 QA pairs** (AAPL/MSFT/GOOGL/AMZN/NVDA + 4 cross-company comparatives), ground truths and `reference_contexts` lifted verbatim from the filings. Runner asserts unique questions and that every reference context is a whitespace-collapsed substring of `data/processed/filings.json`.
+  - Dataset mined in **5 parallel sub-agents** (15 pairs per ticker), merged with the original 30, then deduped (dropped 2 near-duplicate questions) → 103.
+  - Distribution: factual 67 / analytical 21 / comparative 12 / summary 3; easy 25 / medium 51 / hard 27; all 169 reference contexts verified verbatim.
+  - 8 verbatim-context fixes: AAPL Services row uses `Services (1) 109,158 %...`, AAPL risk text needed the curly-apostrophe `\u2019` (raw filings use U+2019), GOOGL intl-lines add `in 2025`, NVDA segment rows are `Compute & Networking $ 193,479 $ 116,193 $ 77,286 %` (no `Total Graphics Revenue` heading), AMZN AWS row includes the full `Operating expenses` column, AMZN Anthropic sentence contains an in-text `Table of Contents` page marker, NVDA R&D third value is the `$ Change` column (not FY2024).
 - `pytest` fully green later on (**5/5 passed** — integration tests run once Qdrant/Ollama are up).
 - `src/ingest.py` fixed for current `sec-edgar-downloader` API (`email_address` kwarg); parses `full-submission.txt` files (the downloader no longer writes `.htm`), strips the SEC header from chunk text, and extracts ticker + filing date from the EDGAR header block
 - `src/store.py` `upsert_documents` now embeds in batches (200/request) instead of per-chunk HTTP calls
@@ -93,7 +96,7 @@
 
 - [x] **Week 3:** RAGAS evaluation — setup + smoke test done (see Completed); full run across all 4 strategies pending
 - [x] Run RAGAS smoke evaluation; `data/evaluation/eval_dataset.json` generated from `scripts/build_eval_dataset.py` (30 QA pairs)
-- [ ] Run full RAGAS evaluation across `baseline,hybrid,rerank,full` strategies and record results
+- [ ] Run full RAGAS evaluation across `baseline,hybrid,rerank,full` strategies and record results (**Day 20-21, ready: 103-pair dataset validated**)
 - [ ] Build Streamlit UI (`app/streamlit_app.py` placeholder only)
 - [ ] Optional: enable Langfuse monitoring
 

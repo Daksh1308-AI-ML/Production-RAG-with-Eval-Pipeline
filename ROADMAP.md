@@ -256,17 +256,22 @@ print('RAGAS evaluator initialized')
 ### Day 17-19: Evaluation Dataset Creation
 
 **Tasks**:
-- [ ] Create 100+ QA pairs
-- [ ] Include ground truth answers
-- [ ] Categorize by question type
-- [ ] Add metadata (company, difficulty)
-- [ ] Review and validate questions
-- [ ] Save to data/evaluation/
+- [x] Create 100+ QA pairs
+- [x] Include ground truth answers
+- [x] Categorize by question type
+- [x] Add metadata (company, difficulty)
+- [x] Review and validate questions
+- [x] Save to data/evaluation/
+
+**Notes**:
+- 103 QA pairs built: 20 each for AAPL/MSFT/AMZN/NVDA, 19 for GOOGL, plus 4 cross-company comparative questions.
+- Distribution: factual 67 / analytical 21 / comparative 12 / summary 3; easy 25 / medium 51 / hard 27.
+- Every `reference_contexts` entry is verified verbatim (whitespace-collapsed substring) against `data/processed/filings.json` by `scripts/build_eval_dataset.py`; the builder asserts this on every run.
 
 **Deliverables**:
-- 100+ QA pairs with ground truth
-- Evaluation dataset JSON
-- Question type distribution
+- [x] 100+ QA pairs with ground truth
+- [x] Evaluation dataset JSON
+- [x] Question type distribution
 
 **Verification**:
 ```bash
@@ -303,7 +308,7 @@ python -m src.eval --dataset data/evaluation/eval_dataset.json --output results/
 
 ### Week 3 Deliverables Checklist
 - [ ] RAGAS evaluation pipeline working
-- [ ] 100+ QA evaluation dataset
+- [x] 100+ QA evaluation dataset
 - [ ] Baseline vs hybrid comparison
 - [ ] Failure analysis documented
 - [ ] A/B test results
