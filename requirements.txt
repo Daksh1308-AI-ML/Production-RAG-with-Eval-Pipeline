@@ -1,17 +1,17 @@
-# Core LangChain
-langchain
-langchain-community
-langchain-core
+# Core LangChain (pinned to ragas==0.4.3-compatible 0.3.x line; 1.x is incompatible)
+langchain==0.3.19
+langchain-community==0.3.18
+langchain-core==0.3.40
 
 # Ollama Integration
-langchain-ollama
+langchain-ollama==0.2.3
 
 # OpenAI-compatible judge (Groq / OpenRouter / Cerebras / etc.)
-langchain-openai
+langchain-openai==0.3.0
 
 # Qdrant Vector Store
 qdrant-client
-langchain-qdrant
+langchain-qdrant==0.2.0
 
 # Document Processing
 sec-edgar-downloader

@@ -24,6 +24,25 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
+
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: rag-app
+    ports:
+      - "8501:8501"
+    env_file:
+      - ../.env
+    environment:
+      - QDRANT_HOST=qdrant
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      qdrant:
+        condition: service_started
+      ollama:
+        condition: service_started
+    restart: unless-stopped
     # Uncomment below for GPU support
     # deploy:
     #   resources:

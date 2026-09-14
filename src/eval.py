@@ -57,9 +57,9 @@ class RAGEvaluator:
             base_url=config.ollama.base_url
         )
 
-    def load_eval_dataset(self) -> EvaluationDataset:
+    def load_eval_dataset(self, dataset_path: Optional[Path] = None) -> EvaluationDataset:
         """Load evaluation dataset from a JSON file."""
-        dataset_path = Path(config.eval.eval_dataset_path)
+        dataset_path = Path(dataset_path or config.eval.eval_dataset_path)
 
         if not dataset_path.exists():
             raise FileNotFoundError(
@@ -240,7 +240,7 @@ def main() -> int:
     t0 = time.time()
     print(f"loading dataset: {dataset_path}", flush=True)
     evaluator = RAGEvaluator()
-    eval_dataset = evaluator.load_eval_dataset()
+    eval_dataset = evaluator.load_eval_dataset(dataset_path)
     if args.limit > 0:
         eval_dataset = EvaluationDataset(samples=eval_dataset.samples[:args.limit])
         print(f"limited to {args.limit} samples", flush=True)

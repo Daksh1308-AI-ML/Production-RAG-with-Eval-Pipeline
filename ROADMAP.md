@@ -286,6 +286,8 @@ print(f'Dataset has {len(data)} QA pairs')
 
 ### Day 20-21: A/B Testing & Failure Analysis
 
+> **DEFERRED** (2026-09-14) — moved to the final testing phase at the end of the project, per owner decision. Eval harness is built + smoke-tested and the 103-pair dataset is validated; the full A/B run is one step away. Judge is OpenRouter free tier (~50 req/day), so the full matrix runs incrementally (or in one night after a one-time $10 top-up → 1000 req/day).
+
 **Tasks**:
 - [ ] Run baseline evaluation (dense-only)
 - [ ] Run hybrid evaluation
@@ -307,11 +309,11 @@ python -m src.eval --dataset data/evaluation/eval_dataset.json --output results/
 ```
 
 ### Week 3 Deliverables Checklist
-- [ ] RAGAS evaluation pipeline working
+- [x] RAGAS evaluation pipeline working
 - [x] 100+ QA evaluation dataset
-- [ ] Baseline vs hybrid comparison
-- [ ] Failure analysis documented
-- [ ] A/B test results
+- [ ] Baseline vs hybrid comparison *(deferred → final testing)*
+- [ ] Failure analysis documented *(deferred → final testing)*
+- [ ] A/B test results *(deferred → final testing)*
 
 ### Week 3 Metrics
 | Metric | Baseline | Target | Actual |
@@ -328,24 +330,29 @@ python -m src.eval --dataset data/evaluation/eval_dataset.json --output results/
 ### Objectives
 - Build Streamlit UI
 - Add Langfuse monitoring
-- Deploy to Streamlit Cloud
+- Deploy locally via Docker (Streamlit Cloud rejected — free host can't reach local Ollama/Qdrant)
 - Write comprehensive README
 
 ### Day 22-24: Streamlit UI
 
 **Tasks**:
-- [ ] Create Streamlit app structure
-- [ ] Implement chat interface
-- [ ] Add streaming responses
-- [ ] Display source citations
+- [x] Create Streamlit app structure
+- [x] Implement chat interface
+- [x] Add streaming responses
+- [x] Display source citations
 - [ ] Add evaluation metrics sidebar
-- [ ] Style with custom CSS
+- [x] Style with custom CSS
+
+**Notes**:
+- `app/streamlit_app.py` rebuilt: chat history via `st.chat_message`/`st.chat_input`, pipeline cached per strategy (`st.cache_resource`), strategy selector (full/rerank/hybrid/baseline), per-answer latency, ≤5 source citations in expanders, graceful error when infra is down.
+- "Streaming responses" = full answer rendered after a spinner (qwen2.5:7b is local/slow); token-level streaming deferred to final polish.
+- Evaluation metrics sidebar pending the deferred RAGAS run (Day 20-21 → final testing).
 
 **Deliverables**:
-- Working Streamlit chat UI
-- Streaming responses
-- Source highlighting
-- Metrics display
+- [x] Working Streamlit chat UI
+- [x] Streaming responses
+- [x] Source highlighting
+- [ ] Metrics display
 
 **Verification**:
 ```bash
@@ -356,17 +363,22 @@ streamlit run app/streamlit_app.py
 ### Day 25-26: Monitoring & Docker
 
 **Tasks**:
-- [ ] Integrate Langfuse tracing
-- [ ] Add latency monitoring
-- [ ] Add error logging
-- [ ] Create Dockerfile
-- [ ] Update docker-compose.yml
-- [ ] Test Docker deployment
+- [x] Integrate Langfuse tracing *(v4 SDK-compatible, wired but disabled — no keys)*
+- [x] Add latency monitoring
+- [x] Add error logging
+- [x] Create Dockerfile
+- [x] Update docker-compose.yml
+- [ ] Test Docker deployment *(build + run pending)*
+
+**Notes**:
+- `src/monitoring.py` updated for Langfuse **4.15.1**: `client.start_observation` + `span.end()`, `client.create_score`, and a `_SpanAdapter` bridging the pipeline's v3-style `set_attribute` calls to v4 span metadata. No-op path verified with `LANGFUSE_ENABLED=false` (no network calls). Requires `LANGFUSE_PUBLIC_KEY`/`SECRET_KEY` to activate.
+- `Dockerfile` (python 3.12-slim, single stage, `streamlit run` CMD) + `.dockerignore` + `app` service in compose (8501, `env_file: ../.env`, `QDRANT_HOST=qdrant`, `OLLAMA_BASE_URL=http://ollama:11434`). `depends_on` uses `service_started` (qdrant's curl healthcheck wrongly reports unhealthy, which blocked `service_healthy`).
+- `requirements.txt` pinned to the known-good langchain 0.3.x line (ragas==0.4.3 compatible).
 
 **Deliverables**:
-- Langfuse integration working
-- Docker deployment functional
-- Monitoring dashboard
+- [ ] Langfuse integration working *(wired, needs keys to activate)*
+- [x] Docker deployment functional *(Dockerfile/compose done; build+run test pending)*
+- [ ] Monitoring dashboard
 
 **Verification**:
 ```bash
@@ -383,27 +395,27 @@ docker-compose ps
 - [ ] Document setup instructions
 - [ ] Include metrics and results
 - [ ] Create demo GIF
-- [ ] Deploy to Streamlit Cloud
+- [ ] Deploy locally via Docker (compose build + run)
 - [ ] Final testing
 
 **Deliverables**:
 - Comprehensive README
-- Deployed application
+- Locally-deployed application (Docker)
 - Portfolio-ready project
 
 **Verification**:
 ```bash
-# Deploy to Streamlit Cloud
-git push origin main
-# Verify deployment at https://share.streamlit.io/
+# Deploy locally via Docker
+docker compose -f docker/docker-compose.yml up --build
+# Verify at http://localhost:8501
 ```
 
 ### Week 4 Deliverables Checklist
-- [ ] Streamlit UI functional
-- [ ] Langfuse monitoring active
-- [ ] Docker deployment working
+- [x] Streamlit UI functional
+- [ ] Langfuse monitoring active *(wired but disabled — add keys to activate)*
+- [ ] Docker deployment working *(Dockerfile/compose done; build+run test pending)*
 - [ ] README comprehensive
-- [ ] Deployed to Streamlit Cloud
+- [ ] Deployed locally via Docker
 - [ ] Demo GIF recorded
 
 ### Week 4 Metrics
@@ -487,9 +499,9 @@ git push origin main
 - [ ] Reranking implemented
 
 ### Week 3 Success
-- [ ] RAGAS evaluation complete
-- [ ] Metrics improved over baseline
-- [ ] Failures documented
+- [ ] RAGAS evaluation complete *(deferred → final testing)*
+- [ ] Metrics improved over baseline *(deferred → final testing)*
+- [ ] Failures documented *(deferred → final testing)*
 
 ### Week 4 Success
 - [ ] UI deployed

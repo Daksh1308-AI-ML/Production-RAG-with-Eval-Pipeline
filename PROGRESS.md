@@ -96,11 +96,14 @@
 
 - [x] **Week 3:** RAGAS evaluation — setup + smoke test done (see Completed); full run across all 4 strategies pending
 - [x] Run RAGAS smoke evaluation; `data/evaluation/eval_dataset.json` generated from `scripts/build_eval_dataset.py` (30 QA pairs)
-- [ ] Run full RAGAS evaluation across `baseline,hybrid,rerank,full` strategies and record results (**Day 20-21, ready: 103-pair dataset validated**)
-- [ ] Build Streamlit UI (`app/streamlit_app.py` placeholder only)
-- [ ] Optional: enable Langfuse monitoring
+- [ ] Run full RAGAS evaluation across `baseline,hybrid,rerank,full` strategies and record results (**Day 20-21, deferred to final testing per owner decision — harness + 103-pair dataset ready**)
+- [ ] Build Streamlit UI (`app/streamlit_app.py` placeholder only) — **DONE 2026-09-14**: chat UI + strategy selector + citations + latency; smoke-tested end-to-end (baseline query, 20 sources)
+- [ ] Enable Langfuse monitoring — **wired but disabled** (v4 SDK; needs `LANGFUSE_*` keys)
+- [ ] Dockerfile + docker-compose app service — **DONE 2026-09-14** (build+run test pending)
+- [ ] README metrics/results section + demo GIF
+- [ ] **Day 7-21 A/B deferred** — eval Q/A at end: full RAGAS run, failure analysis, `notebooks/ab_test_analysis.ipynb`
 
 ## Known Notes
-- `langchain-community` deprecation warning observed (expected, non-blocking)
-- `langgraph`, `langchain-classic`, `langchain-openai` uninstalled to resolve conflicts; may be re-triggered by ragas installs (not currently installed)
-- `data/.env.example` no longer present after final `.env` copy; README documents the config vars instead
+- **`src/eval.py` `--dataset` bug FIXED** (2026-09-14): `main()` validated the flag but `load_eval_dataset()` always read `config.eval.eval_dataset_path` — CLI path was ignored (first A/B launch silently evaluated all 103 pairs instead of the 8-pair subset). Fix: `load_eval_dataset(dataset_path=None)`; `main()` passes `args.dataset`. Verified: loads 8 samples from `ab_stratified.json`, pytest 5/5.
+- `scripts/make_ab_subset.py` (untracked) + `data/evaluation/ab_stratified.json` (gitignored) — stratified 8-pair A/B subset, kept for the deferred final testing phase.
+- `data/evaluation/results_ab/` removed; background eval PID 25372 (launched on the unfixed bug) exited before the fix.
