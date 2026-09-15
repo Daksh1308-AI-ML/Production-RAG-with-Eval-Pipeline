@@ -57,45 +57,23 @@ class RAGEvaluator:
             base_url=config.ollama.base_url
         )
 
-    def load_eval_dataset(self, dataset_path: Optional[Path] = None) -> EvaluationDataset:
-        """Load evaluation dataset from a JSON file."""
-        dataset_path = Path(dataset_path or config.eval.eval_dataset_path)
+class LocalJudgeEvaluator(RAGEvaluator):
+    """Local judge for metrics that don't need embeddings (faithfulness, context_recall).
 
-        if not dataset_path.exists():
-            raise FileNotFoundError(
-                f"Evaluation dataset not found at {dataset_path}. "
-                "Generate it first."
-            )
+    Uses Ollama qwen2.5:7b — no API quota, no embedding model co-resident
+    (avoids the 4GB VRAM OOM).
+    """
 
-        with open(dataset_path, "r") as f:
-            data = json.load(f)
-
-        if isinstance(data, dict) and "items" in data:
-            data = data["items"]
-
-        samples = [
-            SingleTurnSample(
-                user_input=item.get("question")
-                or item.get("user_input")
-                or item.get("query", ""),
-                reference=item.get("ground_truth")
-                or item.get("reference"),
-                reference_contexts=item.get("contexts")
-                or item.get("reference_contexts"),
-            )
-            for item in data
-        ]
-
-        return EvaluationDataset(
-            samples=[
-                SingleTurnSample(
-                    user_input=s.user_input,
-                    reference=s.reference,
-                    reference_contexts=s.reference_contexts,
-                )
-                for s in samples
-            ]
+    def __init__(self):
+        self.judge_llm = ChatOllama(
+            model=config.eval.judge_model,
+            temperature=0.2,
+            base_url=config.ollama.base_url,
+            format="json",
+            num_ctx=config.ollama.num_ctx,
         )
+        self.judge_embeddings = None  # never used — MetricWithLLM only
+
 
     def run_evaluation(
         self,
@@ -116,9 +94,12 @@ class RAGEvaluator:
 
         from ragas.run_config import RunConfig
         # ponytail: local Ollama judge can't serve ragas' default 16 concurrent
-        # workers — requests queue and blow the 180s timeout. serialize at 4.
+        # workers — requests queue and blow the 180s timeout. Keep it fully
+        # serialized: >1 worker races the OpenRouter judge into returning None
+        # responses ('NoneType' object is not iterable at 0/it). Free-tier
+        # serial is ~53s/sample — acceptable for the nightly A/B budget.
         run_config = RunConfig(
-            max_workers=4,
+            max_workers=1,
             timeout=600,
             max_retries=5,
         )
