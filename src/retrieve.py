@@ -17,9 +17,11 @@ _RRF_C = 60
 class HybridRetriever:
     """Combine BM25 and Dense retrieval."""
     
-    def __init__(self, chunks: Optional[List[Document]] = None):
-        self.vector_store = VectorStore()
+    def __init__(self, chunks: Optional[List[Document]] = None,
+                 tenant_id: Optional[str] = None):
+        self.vector_store = VectorStore(tenant_id=tenant_id)
         self.chunks = chunks
+        self.tenant_id = tenant_id or config.tenant.tenant_id
         self.bm25_retriever = None
         self.dense_retriever = None
         
@@ -63,13 +65,12 @@ class HybridRetriever:
     
     def _filter(self, documents: List[Document],
                 filter_metadata: Optional[Dict[str, Any]]) -> List[Document]:
-        """Apply metadata filter post-hoc (BM25 can't filter natively)."""
-        if not filter_metadata:
-            return documents
+        """Apply tenant + metadata filter post-hoc (BM25 can't filter natively)."""
         return [
             d for d in documents
-            if all(d.metadata.get(key) == value
-                   for key, value in filter_metadata.items())
+            if d.metadata.get("tenant_id", self.tenant_id) == self.tenant_id
+            and all(d.metadata.get(key) == value
+                    for key, value in (filter_metadata or {}).items())
         ]
     
     def retrieve(

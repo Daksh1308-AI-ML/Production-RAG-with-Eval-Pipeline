@@ -75,6 +75,30 @@ class MonitoringConfig:
 
 
 @dataclass
+class TenantConfig:
+    """Tenant / multi-tenancy configuration (payload-filter on a single collection)."""
+    tenant_id: str = os.getenv("TENANT_ID", "default")
+
+
+@dataclass
+class CacheConfig:
+    """Semantic cache configuration."""
+    enabled: bool = os.getenv("CACHE_ENABLED", "true").lower() == "true"
+    threshold: float = float(os.getenv("CACHE_THRESHOLD", "0.92"))
+    collection_name: str = os.getenv("CACHE_COLLECTION", "semantic_cache")
+
+
+@dataclass
+class ApiConfig:
+    """API gateway configuration."""
+    api_keys: Tuple[str, ...] = tuple(
+        k.strip() for k in os.getenv("API_KEYS", "").split(",") if k.strip()
+    )
+    host: str = os.getenv("API_HOST", "0.0.0.0")
+    port: int = int(os.getenv("API_PORT", "8000"))
+
+
+@dataclass
 class SECConfig:
     """SEC EDGAR configuration."""
     company_name: str = os.getenv("SEC_COMPANY_NAME", "ResearchProject")
@@ -95,6 +119,9 @@ class AppConfig:
     eval: EvalConfig = field(default_factory=EvalConfig)
     monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
     sec: SECConfig = field(default_factory=SECConfig)
+    tenant: TenantConfig = field(default_factory=TenantConfig)
+    cache: CacheConfig = field(default_factory=CacheConfig)
+    api: ApiConfig = field(default_factory=ApiConfig)
     
     # Paths
     base_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent)

@@ -164,9 +164,8 @@ Companies lose millions querying internal documents with inaccurate AI. Simple v
 
 1. **Fine-tuning**: No model fine-tuning
 2. **Training**: No embedding model training
-3. **Multi-tenant**: Single user only
-4. **Real-time Ingestion**: Batch processing only
-5. **Authentication**: No user management
+
+*Multi-tenant, real-time ingestion, and authentication moved to Phase 2 (see below): multi-tenant via `tenant_id` payload filtering on a single collection, incremental ingestion, and API auth via static keys.*
 
 ## Assumptions
 
@@ -193,6 +192,17 @@ Companies lose millions querying internal documents with inaccurate AI. Simple v
 - sec-edgar-downloader
 - rank-bm25
 - sentence-transformers
+
+## Phase 2 (in progress, 2026-09-16)
+
+Planned enhancements on top of the MVP, currently in progress (designed, not yet verified).
+
+1. **Multi-tenant support** — single Qdrant collection `sec_filings`, chunks tagged with `tenant_id` payload; retrieval filters by tenant. New `TENANT_ID` env (default `"default"`). No collection-per-tenant.
+2. **Real-time document ingestion** — `scripts/ingest_one.py` ingests individual filings incrementally (parse → chunk → upsert, no collection recreation). `src/store.py` gains an idempotent incremental upsert (delete existing points for a source, keyed by hash of source + chunk_index). `scripts/ingest_index.py` gains a `--tenant` flag; full-rebuild path retained for batch rebuilds.
+3. **Advanced caching (semantic cache)** — `src/cache.py` `SemanticCache` backed by a Qdrant `semantic_cache` collection using `EmbeddingGenerator`. `lookup(query)` returns a cached response when top-1 cosine similarity ≥ `CACHE_THRESHOLD` (default 0.92). Served before retrieval, written after generation in `RAGPipeline.query()`; bypassed for the `baseline` strategy. Wiped on re-ingest.
+4. **API gateway** — FastAPI `app/api.py`: `POST /query`, `POST /ingest`, `GET /health`. Auth = `X-API-Key` header against comma-separated `API_KEYS` env (401 otherwise). Pipeline cached per strategy at module scope. New `api` service in docker-compose (port 8000).
+
+New env vars: `TENANT_ID`, `CACHE_ENABLED`, `CACHE_THRESHOLD`, `API_KEYS` (comma-separated). `.env` and `data/` are git-ignored — never commit them.
 
 ## Glossary
 

@@ -103,6 +103,17 @@
 - [ ] README metrics/results section + demo GIF
 - [ ] **Day 7-21 A/B deferred** — eval Q/A at end: full RAGAS run, failure analysis, `notebooks/ab_test_analysis.ipynb`
 
+## Phase 2 (in progress, 2026-09-16)
+
+Being built — designed, not yet verified.
+
+1. **Multi-tenant (payload-filter):** single Qdrant collection `sec_filings`, chunks tagged with `tenant_id` payload; retrieval filters by tenant. New `TENANT_ID` env (default `"default"`). No collection-per-tenant.
+2. **Real-time ingestion:** `scripts/ingest_one.py` ingests individual filings incrementally (parse → chunk → upsert, no collection recreation). `src/store.py` incremental upsert deletes existing points for a source, keyed by hash of source + chunk_index. `scripts/ingest_index.py` gains a `--tenant` flag.
+3. **Advanced caching (semantic cache):** `src/cache.py` `SemanticCache` in a Qdrant `semantic_cache` collection, served from cache before retrieval when top-1 cosine similarity ≥ `CACHE_THRESHOLD` (0.92); written after generation; bypassed for `baseline`; wiped on re-ingest.
+4. **API gateway:** FastAPI `app/api.py` — `POST /query`, `POST /ingest`, `GET /health`; auth via `X-API-Key` against comma-separated `API_KEYS` env; pipeline cached per strategy; `api` service in docker-compose (port 8000).
+
+New files: `src/cache.py`, `app/api.py`, `scripts/ingest_one.py`. New env vars: `TENANT_ID`, `CACHE_ENABLED`, `CACHE_THRESHOLD`, `API_KEYS`.
+
 ## Known Notes
 - **`src/eval.py` `--dataset` bug FIXED** (2026-09-14): `main()` validated the flag but `load_eval_dataset()` always read `config.eval.eval_dataset_path` — CLI path was ignored (first A/B launch silently evaluated all 103 pairs instead of the 8-pair subset). Fix: `load_eval_dataset(dataset_path=None)`; `main()` passes `args.dataset`. Verified: loads 8 samples from `ab_stratified.json`, pytest 5/5.
 - `scripts/make_ab_subset.py` (untracked) + `data/evaluation/ab_stratified.json` (gitignored) — stratified 8-pair A/B subset, kept for the deferred final testing phase.

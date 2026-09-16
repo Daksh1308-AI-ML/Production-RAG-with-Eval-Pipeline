@@ -21,12 +21,13 @@ class RAGResponse:
     sources: List[Dict]
     query_rewrite: Optional[str]
     latency_ms: float
+    cached: bool = False
 
 
 class RAGPipeline:
     """Complete RAG pipeline with all components."""
     
-    def __init__(self, strategy: str = "full"):
+    def __init__(self, strategy: str = "full", tenant_id: Optional[str] = None):
         """strategy: full | rerank | hybrid | baseline.
 
         full    = rewrite + hybrid + rerank
@@ -35,18 +36,40 @@ class RAGPipeline:
         baseline = dense-only retrieval, no rewrite, no rerank
         """
         self.strategy = strategy
+        self.tenant_id = tenant_id or config.tenant.tenant_id
         self.query_rewriter = QueryRewriter()
         self.retriever = None
         self.reranker = Reranker()
         self.generator = AnswerGenerator()
         self.tracer = Tracer()
+        self._cache = None
+    
+    def _get_cache(self):
+        """Lazy semantic cache (avoids import cycle at module load)."""
+        if self._cache is None:
+            from .cache import SemanticCache
+            self._cache = SemanticCache(tenant_id=self.tenant_id)
+        return self._cache
     
     def initialize(self, chunks: List[Document]):
         """Initialize with document chunks."""
-        self.retriever = HybridRetriever(chunks)
+        for chunk in chunks:
+            chunk.metadata["tenant_id"] = self.tenant_id
+        self.retriever = HybridRetriever(chunks, tenant_id=self.tenant_id)
+    
+    def clear_cache(self):
+        """Drop cached responses (call after reingest)."""
+        self._get_cache().clear()
     
     def query(self, user_query: str) -> RAGResponse:
         """Process a user query."""
+        # Semantic cache (bypasses the full pipeline on a near-identical query)
+        cache = self._get_cache()
+        if self.strategy != "baseline":
+            cached = cache.lookup(user_query)
+            if cached:
+                return cached
+        
         start_time = time.time()
         
         with self.tracer.trace("rag_query") as trace:
@@ -88,12 +111,19 @@ class RAGPipeline:
             for doc in reranked
         ]
         
-        return RAGResponse(
+        response = RAGResponse(
             answer=answer,
             sources=sources,
             query_rewrite=rewritten_queries[0] if rewritten_queries else None,
             latency_ms=latency_ms
         )
+        
+        # Cache this generated response (skip baseline caching: it writes noise
+        # for the degraded path and reingest clears the cache anyway)
+        if self.strategy != "baseline":
+            cache.store(user_query, response)
+        
+        return response
     
     def stream(self, user_query: str) -> Generator[str, None, None]:
         """Stream a response."""

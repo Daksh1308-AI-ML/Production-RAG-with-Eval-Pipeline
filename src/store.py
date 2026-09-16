@@ -1,7 +1,7 @@
 """Qdrant vector store operations."""
 
 from typing import List, Optional, Dict, Any
-from uuid import uuid4
+from uuid import uuid4, uuid5, NAMESPACE_DNS
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
@@ -18,13 +18,22 @@ from .embed import EmbeddingGenerator
 class VectorStore:
     """Qdrant vector store manager."""
     
-    def __init__(self):
+    def __init__(self, tenant_id: Optional[str] = None):
         self.client = QdrantClient(
             host=config.qdrant.host,
             port=config.qdrant.port
         )
         self.embeddings = EmbeddingGenerator()
         self.collection_name = config.qdrant.collection_name
+        self.tenant_id = tenant_id or config.tenant.tenant_id
+        self.payload_keys = ("content", "metadata", "tenant_id")
+
+    @staticmethod
+    def _point_id(chunk: Document) -> str:
+        """Deterministic point id: hash of source + chunk_index (idempotent upsert; delete-by-source works too)."""
+        source = chunk.metadata.get("source", "")
+        idx = chunk.metadata.get("chunk_index", 0)
+        return str(uuid5(NAMESPACE_DNS, f"{source}|{idx}"))
     
     def create_collection(self, recreate: bool = False):
         """Create or recreate the collection."""
@@ -54,11 +63,12 @@ class VectorStore:
             )
             for chunk, embedding in zip(batch_docs, embeddings):
                 points.append(PointStruct(
-                    id=str(uuid4()),
+                    id=self._point_id(chunk),
                     vector=embedding,
                     payload={
                         "content": chunk.page_content,
-                        "metadata": chunk.metadata
+                        "metadata": chunk.metadata,
+                        "tenant_id": self.tenant_id
                     }
                 ))
 
@@ -78,20 +88,47 @@ class VectorStore:
 
         return len(chunks)
     
+    def upsert_incremental(self, chunks: List[Document]) -> int:
+        """Upsert new chunks from a single filing: delete this source's existing
+        points first (idempotent re-index), then upsert fresh chunks."""
+        sources = {c.metadata.get("source", "") for c in chunks}
+        for source in sources:
+            if source:
+                self.client.delete(
+                    collection_name=self.collection_name,
+                    points_selector=Filter(must=[
+                        FieldCondition(
+                            key="metadata.source",
+                            match=MatchValue(value=source)
+                        ),
+                        FieldCondition(
+                            key="tenant_id",
+                            match=MatchValue(value=self.tenant_id)
+                        )
+                    ])
+                )
+        return self.upsert_documents(chunks)
+    
     def search(
         self,
         query: str,
         k: int = 5,
-        filter_metadata: Optional[Dict[str, Any]] = None
+        filter_metadata: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None
     ) -> List[Document]:
         """Search for similar documents."""
         # Embed query
         query_embedding = self.embeddings.embed_query(query)
         
-        # Build filter
-        query_filter = None
+        # Build filter (metadata filter AND tenant)
+        conditions = []
+        conditions.append(
+            FieldCondition(
+                key="tenant_id",
+                match=MatchValue(value=tenant_id or self.tenant_id)
+            )
+        )
         if filter_metadata:
-            conditions = []
             for key, value in filter_metadata.items():
                 conditions.append(
                     FieldCondition(
@@ -99,7 +136,7 @@ class VectorStore:
                         match=MatchValue(value=value)
                     )
                 )
-            query_filter = Filter(must=conditions)
+        query_filter = Filter(must=conditions)
         
         # Search
         results = self.client.query_points(

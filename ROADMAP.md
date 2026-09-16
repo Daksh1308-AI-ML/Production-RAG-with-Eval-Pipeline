@@ -522,11 +522,25 @@ docker compose -f docker/docker-compose.yml up --build
 
 ## Next Phase (Post-MVP)
 
-### Phase 2 Enhancements
-1. Multi-tenant support
-2. Real-time document ingestion
-3. Advanced caching (semantic cache)
-4. API gateway for external access
+### Phase 2 Enhancements *(in progress as of 2026-09-16)*
+
+1. **Multi-tenant support (payload-filter approach)**
+   Design: single Qdrant collection `sec_filings`, chunks tagged with a `tenant_id` payload field. Retrieval filters by tenant via qdrant filter — no collection-per-tenant. New `TENANT_ID` env var (default `"default"`).
+   Files: `src/store.py` (tenant filter in search), `src/config.py`.
+
+2. **Real-time document ingestion**
+   Design: `scripts/ingest_one.py` ingests individual filings incrementally (parse → chunk → upsert without recreating the collection). `src/store.py` gets an idempotent incremental upsert that deletes existing points for a source before upserting, keyed by hash of source + chunk_index. `scripts/ingest_index.py` gains a `--tenant` flag; the full-rebuild path still exists for batch rebuilds.
+   Files: `scripts/ingest_one.py` (new), `src/store.py`, `scripts/ingest_index.py`.
+
+3. **Advanced caching (semantic cache)**
+   Design: `src/cache.py` `SemanticCache` backed by a Qdrant collection `semantic_cache` (or per-config name), using the existing `EmbeddingGenerator`. `lookup(query)` returns a cached response when top-1 cosine similarity ≥ `CACHE_THRESHOLD` (default 0.92); wired into `RAGPipeline.query()` — served before retrieval, written after generation, bypassed for the `baseline` strategy. Cache collection is wiped on re-ingest.
+   Files: `src/cache.py` (new), `src/rag.py`, `src/config.py`. New env vars `CACHE_ENABLED`, `CACHE_THRESHOLD`.
+
+4. **API gateway**
+   Design: FastAPI gateway `app/api.py` serving `POST /query` (`{query, strategy?, tenant_id?}` → RAGResponse JSON), `POST /ingest` (`{paths: [...]}` → chunk counts), `GET /health`. Auth via `X-API-Key` header checked against comma-separated `API_KEYS` env (401 otherwise). Pipeline cached per strategy at module scope. New `api` service in `docker/docker-compose.yml` (port 8000).
+   Files: `app/api.py` (new), `docker/docker-compose.yml`, `requirements.txt` (`fastapi`, `uvicorn[standard]`).
+
+Note: new env vars `TENANT_ID`, `CACHE_ENABLED`, `CACHE_THRESHOLD`, `API_KEYS` (comma-separated). `.env` and `data/` are git-ignored — never commit them.
 
 ### Phase 3 Enhancements
 1. Self-RAG (adaptive retrieval)

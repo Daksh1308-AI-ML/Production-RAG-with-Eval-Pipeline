@@ -1,5 +1,10 @@
-"""Index parsed SEC filings into Qdrant: load filings.json, chunk, recreate collection, upsert."""
+"""Index parsed SEC filings into Qdrant: load filings.json, chunk, recreate collection, upsert.
 
+Recreates the collection (full rebuild) for one tenant. Use scripts/ingest_one.py for
+incremental ingestion of a single filing.
+"""
+
+import argparse
 import json
 import time
 
@@ -9,6 +14,10 @@ from src.store import VectorStore
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tenant", default=None, help="tenant_id for the ingested chunks")
+    args = parser.parse_args()
+
     print("loading processed filings...", flush=True)
     with open(config.processed_dir / "filings.json", encoding="utf-8") as f:
         filings = json.load(f)
@@ -18,7 +27,7 @@ def main() -> None:
     print(f"chunks: {len(chunks)}", flush=True)
 
     print("recreating collection...", flush=True)
-    vs = VectorStore()
+    vs = VectorStore(tenant_id=args.tenant)
     vs.create_collection(recreate=True)
 
     batch = 200

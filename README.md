@@ -22,6 +22,15 @@ User Query → Query Rewrite → Hybrid Retrieval (BM25 + Dense, RRF)
 
 Stores: **Qdrant** (vector DB), **Ollama** (embeddings `nomic-embed-text`, LLM), **SEC EDGAR** (source data). See [`SYSTEM_ARCHITECTURE.md`](SYSTEM_ARCHITECTURE.md) for full diagrams, [`TECHNICAL_DESIGN.md`](TECHNICAL_DESIGN.md) for component specs.
 
+## Phase 2 (in progress)
+
+- **API gateway** — FastAPI (`app/api.py`): `POST /query`, `POST /ingest`, `GET /health`, auth via `X-API-Key` (comma-separated `API_KEYS` env)
+- **Semantic cache** — `src/cache.py`, Qdrant-backed, serves cached answers when top-1 cosine similarity ≥ `CACHE_THRESHOLD` (0.92); bypassed for the `baseline` strategy
+- **Multi-tenant** — single `sec_filings` collection filtered by a `tenant_id` payload (`TENANT_ID` env, default `"default"`)
+- **Incremental ingestion** — `scripts/ingest_one.py` ingests individual filings without recreating the collection
+
+See [`PROGRESS.md`](PROGRESS.md) for status.
+
 ## Tech Stack
 
 | Component | Technology |
@@ -152,6 +161,9 @@ All settings live in `src/config.py` and read from env vars (loaded from `.env`)
 | `INITIAL_K` / `FINAL_K` | `20` / `5` | Retrieve → rerank |
 | `SEC_COMPANY_NAME` / `SEC_EMAIL` | — | SEC EDGAR user agent |
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | — | Monitoring (optional) |
+| `TENANT_ID` | `default` | Multi-tenant payload filter |
+| `CACHE_ENABLED` / `CACHE_THRESHOLD` | `true` / `0.92` | Semantic cache on/off, similarity threshold |
+| `API_KEYS` | — | Comma-separated static keys for the API gateway |
 
 ## Testing
 

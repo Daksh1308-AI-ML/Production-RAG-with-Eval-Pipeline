@@ -1032,6 +1032,116 @@ class NoOpTrace:
         pass
 ```
 
+### 13. cache.py - Semantic Caching *(in progress)*
+
+```python
+"""Semantic cache backed by Qdrant. Wired into RAGPipeline.query()."""
+
+from typing import Optional
+from qdrant_client import QdrantClient
+from qdrant_client.models import VectorParams, Distance, PointStruct
+from .config import config
+from .embed import EmbeddingGenerator
+import uuid
+
+
+class SemanticCache:
+    """Top-1 cosine-similarity cache over a Qdrant collection."""
+
+    def __init__(self):
+        self.client = QdrantClient(host=config.qdrant.host, port=config.qdrant.port)
+        self.embeddings = EmbeddingGenerator()
+        self.collection_name = config.cache.collection_name  # "semantic_cache"
+        self.threshold = config.cache.threshold  # CACHE_THRESHOLD, default 0.92
+
+    def lookup(self, query: str) -> Optional[str]:
+        """Return cached response if top-1 cosine similarity >= threshold."""
+        vector = self.embeddings.embed_query(query)
+        hits = self.client.search(
+            collection_name=self.collection_name,
+            query_vector=vector, limit=1
+        )
+        if hits and hits[0].score >= self.threshold:
+            return hits[0].payload["answer"]
+        return None
+
+    def store(self, query: str, answer: str):
+        """Write a generated response back to the cache."""
+        self.client.upsert(
+            collection_name=self.collection_name,
+            points=[PointStruct(
+                id=str(uuid.uuid4()),
+                vector=self.embeddings.embed_query(query),
+                payload={"query": query, "answer": answer}
+            )]
+        )
+
+    def clear(self):
+        """Wipe the cache (called on re-ingest)."""
+        self.client.recreate_collection(
+            collection_name=self.collection_name,
+            vectors_config=VectorParams(
+                size=config.qdrant.embedding_dim, distance=Distance.COSINE
+            )
+        )
+```
+
+### 14. app/api.py - API Gateway *(in progress)*
+
+```python
+"""FastAPI gateway: POST /query, POST /ingest, GET /health. Auth: X-API-Key."""
+
+from typing import List, Optional
+from fastapi import FastAPI, Header, HTTPException
+from pydantic import BaseModel
+
+from src.cache import SemanticCache
+from src.rag import RAGPipeline, RAGResponse
+from src.config import config
+
+app = FastAPI()
+
+class QueryRequest(BaseModel):
+    query: str
+    strategy: Optional[str] = "full"
+    tenant_id: Optional[str] = None
+
+class QueryResponse(BaseModel):
+    answer: str
+    sources: List[dict]
+    latency_ms: float
+    cached: bool = False
+
+class IngestRequest(BaseModel):
+    paths: List[str]
+
+def _check_api_key(x_api_key: str = Header(None)):
+    if x_api_key not in config.api_keys:  # comma-separated API_KEYS env
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return x_api_key
+
+_pipelines = {}  # pipeline cached per strategy at module scope
+
+@app.post("/query", dependencies=[Depends(_check_api_key)])
+def query(req: QueryRequest) -> QueryResponse:
+    if req.strategy != "baseline" and config.cache.enabled:
+        cached = _cache.lookup(req.query)
+        if cached:
+            return QueryResponse(answer=cached, sources=[], latency_ms=0.0, cached=True)
+    response = _pipelines.setdefault(req.strategy, RAGPipeline(strategy=req.strategy)).query(req.query)
+    _cache.store(req.query, response.answer)
+    return QueryResponse(answer=response.answer, sources=response.sources, latency_ms=response.latency_ms)
+
+@app.post("/ingest", dependencies=[Depends(_check_api_key)])
+def ingest(req: IngestRequest) -> dict:
+    total = _cache.clear()  # cache collection wiped on re-ingest
+    return {"ingested": total}
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok", "qdrant": qdrant_reachable(), "collection": collection_count()}
+```
+
 ## Configuration Files
 
 ### .env.example
@@ -1052,6 +1162,16 @@ LANGFUSE_PUBLIC_KEY=
 LANGFUSE_SECRET_KEY=
 LANGFUSE_HOST=https://cloud.langfuse.com
 LANGFUSE_ENABLED=false
+
+# Multi-tenant (payload-filter) Configuration
+TENANT_ID=default
+
+# Semantic Cache Configuration
+CACHE_ENABLED=true
+CACHE_THRESHOLD=0.92
+
+# API Gateway Configuration (comma-separated keys)
+API_KEYS=
 ```
 
 ### requirements.txt

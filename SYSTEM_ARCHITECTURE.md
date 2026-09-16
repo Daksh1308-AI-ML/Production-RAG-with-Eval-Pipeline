@@ -235,9 +235,9 @@ LLM Generation:      ~80ms   (16%)
 
 ```mermaid
 graph LR
-    A[Query] -->|Hash| B[Cache Key]
-    B -->|Hit| C[Cached Response]
-    B -->|Miss| D[Full Pipeline]
+    A[Query] -->|Embed| SC[Semantic Cache]
+    SC -->|cosine sim >= threshold| C[Cached Response]
+    SC -->|miss| D[Full Pipeline]
     D -->|Store| E[Cache]
     E -->|Return| C
 ```
@@ -359,14 +359,13 @@ graph TD
 
 ## Future Architecture
 
-### Phase 2 Enhancements
-1. **Multi-tenant**: User isolation
-2. **Real-time Ingestion**: WebSocket updates
-3. **Advanced Caching**: Semantic cache
-4. **A/B Testing**: Framework for experiments
+### Phase 2 Enhancements *(in progress as of 2026-09-16)*
+1. **Multi-tenant (payload-filter)**: Single `sec_filings` collection, chunks tagged with `tenant_id` payload; retrieval filters by tenant via qdrant filter. No collection-per-tenant.
+2. **Real-time Ingestion**: `scripts/ingest_one.py` parses → chunks → upserts individual filings without recreating the collection; `src/store.py` incremental upsert is idempotent (keyed by hash of source + chunk_index). `ingest_index.py` gains a `--tenant` flag.
+3. **Advanced Caching (semantic cache)**: `src/cache.py` `SemanticCache` in a Qdrant `semantic_cache` collection, served before retrieval when top-1 cosine similarity ≥ `CACHE_THRESHOLD` (0.92); bypassed for the `baseline` strategy.
+4. **API Gateway**: FastAPI `app/api.py` (`POST /query`, `POST /ingest`, `GET /health`), auth via `X-API-Key` against comma-separated `API_KEYS` env. Package + `api` service in docker-compose (port 8000).
 
 ### Phase 3 Enhancements
 1. **Self-RAG**: Adaptive retrieval
 2. **Guardrails**: Content filtering
 3. **Analytics Dashboard**: Advanced metrics
-4. **API Gateway**: REST API for external access
