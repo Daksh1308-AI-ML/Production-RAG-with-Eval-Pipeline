@@ -12,6 +12,8 @@ from .retrieve import HybridRetriever
 from .rerank import Reranker
 from .generate import AnswerGenerator
 from .monitoring import Tracer
+from .selfrag import SelfRag
+from .guardrails import Guardrails
 
 
 @dataclass
@@ -42,6 +44,8 @@ class RAGPipeline:
         self.reranker = Reranker()
         self.generator = AnswerGenerator()
         self.tracer = Tracer()
+        self.selfrag = SelfRag()
+        self.guardrails = Guardrails()
         self._cache = None
     
     def _get_cache(self):
@@ -63,6 +67,15 @@ class RAGPipeline:
     
     def query(self, user_query: str) -> RAGResponse:
         """Process a user query."""
+        # Input guardrail: block injections / PII / off-topic before any work.
+        if self.guardrails.check_input(user_query):
+            return RAGResponse(
+                answer=self.guardrails.refusal,
+                sources=[],
+                query_rewrite=None,
+                latency_ms=0.0,
+            )
+        
         # Semantic cache (bypasses the full pipeline on a near-identical query)
         cache = self._get_cache()
         if self.strategy != "baseline":
@@ -92,11 +105,35 @@ class RAGPipeline:
             reranked = documents
             if self.strategy in ("full", "rerank"):
                 reranked = self.reranker.rerank(user_query, documents)
-            trace.set_attribute("reranked_count", len(reranked))
+                trace.set_attribute("reranked_count", len(reranked))
+                
+                # Step 3b: Self-RAG — if rerank confidence is weak, widen
+                # retrieval once and re-rerank before committing to an answer.
+                if self.selfrag.needs_expansion(reranked):
+                    wider = self.retriever.retrieve_multi(
+                        queries, k=self.selfrag.expand_top_k)
+                    reranked = self.reranker.rerank(user_query, wider)
+                    trace.set_attribute("selfrag_expanded", True)
+                    trace.set_attribute("reranked_count", len(reranked))
+                
+                # Step 3c: Self-RAG — refuse rather than hallucinate on
+                # context that never clears the confidence floor.
+                if not self.selfrag.should_answer(reranked):
+                    return RAGResponse(
+                        answer="I don't have enough context to answer this "
+                               "question confidently.",
+                        sources=[],
+                        query_rewrite=rewritten_queries[0] if rewritten_queries else None,
+                        latency_ms=(time.time() - start_time) * 1000,
+                    )
             
             # Step 4: Generation
             answer = self.generator.generate(user_query, reranked)
             trace.set_attribute("answer_length", len(answer))
+            
+            # Output guardrail: refuse answers that leak PII or admit nothing.
+            if self.guardrails.check_output(answer):
+                answer = self.guardrails.refusal
         
         # Calculate latency
         latency_ms = (time.time() - start_time) * 1000

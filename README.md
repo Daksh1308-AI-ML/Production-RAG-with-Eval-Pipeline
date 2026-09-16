@@ -31,6 +31,13 @@ Stores: **Qdrant** (vector DB), **Ollama** (embeddings `nomic-embed-text`, LLM),
 
 See [`PROGRESS.md`](PROGRESS.md) for status.
 
+## Phase 3 (implemented 2026-09-16)
+
+- **Self-RAG (adaptive retrieval)** — `src/selfrag.py`: if the best `rerank_score` is below `SELF_RAG_MIN_CONFIDENCE` (0.3), re-retrieves with a wider `SELF_RAG_EXPAND_K` (40) and re-reranks; refuses to answer if still below `SELF_RAG_REFUSE_BELOW` (0.15). Active for `full`/`rerank` strategies.
+- **Guardrails** — `src/guardrails.py`: blocks prompt injections, PII, and off-topic input; refuses bad output (`GUARDRAILS_ENABLED`).
+- **Analytics dashboard** — Streamlit sidebar `View` toggle `Chat | Analytics` (chunk count, cache stats, session latency, A/B results).
+- **A/B report** — `scripts/ab_report.py` turns `results_ab/scores_*` into `ab_report.md` (per-strategy/per-metric best).
+
 ## Tech Stack
 
 | Component | Technology |
@@ -164,6 +171,11 @@ All settings live in `src/config.py` and read from env vars (loaded from `.env`)
 | `TENANT_ID` | `default` | Multi-tenant payload filter |
 | `CACHE_ENABLED` / `CACHE_THRESHOLD` | `true` / `0.92` | Semantic cache on/off, similarity threshold |
 | `API_KEYS` | — | Comma-separated static keys for the API gateway |
+| `SELF_RAG_ENABLED` | `true` | Self-RAG adaptive retrieval on/off |
+| `SELF_RAG_MIN_CONFIDENCE` | `0.3` | Rerank score below this triggers expand-and-rerank |
+| `SELF_RAG_REFUSE_BELOW` | `0.15` | Refuse to answer below this score |
+| `SELF_RAG_EXPAND_K` | `40` | Wider retrieval k for the Self-RAG expansion pass |
+| `GUARDRAILS_ENABLED` | `true` | Input/output guardrails on/off |
 
 ## Testing
 

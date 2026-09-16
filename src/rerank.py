@@ -22,7 +22,10 @@ class Reranker:
         documents: List[Document],
         top_n: int = None
     ) -> List[Document]:
-        """Rerank documents by relevance."""
+        """Rerank documents by relevance.
+
+        Attaches the cross-encoder score to each returned doc's metadata as
+        `rerank_score` (used by Self-RAG's confidence gate)."""
         top_n = top_n or config.reranker.top_n
         
         if not documents:
@@ -37,4 +40,7 @@ class Reranker:
         doc_scores.sort(key=lambda x: x[1], reverse=True)
         
         # Return top_n
-        return [doc for doc, score in doc_scores[:top_n]]
+        kept = doc_scores[:top_n]
+        for doc, score in kept:
+            doc.metadata["rerank_score"] = float(score)
+        return [doc for doc, score in kept]

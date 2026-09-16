@@ -99,6 +99,21 @@ class ApiConfig:
 
 
 @dataclass
+class SelfRagConfig:
+    """Self-RAG (adaptive retrieval) configuration."""
+    enabled: bool = os.getenv("SELF_RAG_ENABLED", "true").lower() == "true"
+    min_confidence: float = float(os.getenv("SELF_RAG_MIN_CONFIDENCE", "0.3"))
+    refuse_below: float = float(os.getenv("SELF_RAG_REFUSE_BELOW", "0.15"))
+    expand_top_k: int = int(os.getenv("SELF_RAG_EXPAND_K", "40"))
+
+
+@dataclass
+class GuardrailsConfig:
+    """Guardrails for sensitive/abusive content."""
+    enabled: bool = os.getenv("GUARDRAILS_ENABLED", "true").lower() == "true"
+
+
+@dataclass
 class SECConfig:
     """SEC EDGAR configuration."""
     company_name: str = os.getenv("SEC_COMPANY_NAME", "ResearchProject")
@@ -122,6 +137,8 @@ class AppConfig:
     tenant: TenantConfig = field(default_factory=TenantConfig)
     cache: CacheConfig = field(default_factory=CacheConfig)
     api: ApiConfig = field(default_factory=ApiConfig)
+    self_rag: SelfRagConfig = field(default_factory=SelfRagConfig)
+    guardrails: GuardrailsConfig = field(default_factory=GuardrailsConfig)
     
     # Paths
     base_dir: Path = field(default_factory=lambda: Path(__file__).parent.parent)

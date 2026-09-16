@@ -365,7 +365,8 @@ graph TD
 3. **Advanced Caching (semantic cache)**: `src/cache.py` `SemanticCache` in a Qdrant `semantic_cache` collection, served before retrieval when top-1 cosine similarity ≥ `CACHE_THRESHOLD` (0.92); bypassed for the `baseline` strategy.
 4. **API Gateway**: FastAPI `app/api.py` (`POST /query`, `POST /ingest`, `GET /health`), auth via `X-API-Key` against comma-separated `API_KEYS` env. Package + `api` service in docker-compose (port 8000).
 
-### Phase 3 Enhancements
-1. **Self-RAG**: Adaptive retrieval
-2. **Guardrails**: Content filtering
-3. **Analytics Dashboard**: Advanced metrics
+### Phase 3 Enhancements *(implemented 2026-09-16)*
+1. **Self-RAG (adaptive retrieval)**: `src/selfrag.py` — reranker cross-encoder score attached to docs (`rerank_score`). Best score below `SELF_RAG_MIN_CONFIDENCE` (0.3) → re-retrieve with wider `SELF_RAG_EXPAND_K` (40) + re-rerank; still below `SELF_RAG_REFUSE_BELOW` (0.15) → refuse to answer. Active for `full`/`rerank` strategies in `RAGPipeline.query()`.
+2. **Guardrails**: `src/guardrails.py` — input guard regex-blocking prompt injections, PII, off-topic keywords (canned refusal); output guard refusing leaked PII / botched refusals. Wired into `RAGPipeline.query()`.
+3. **Analytics Dashboard**: `app/streamlit_app.py` sidebar `Chat | Analytics` toggle — Qdrant chunk count, semantic-cache entries, session cache hit rate (tracked in `src/cache.py`), session latency, A/B results (`ab_report.md` → `summary.json` → run hint).
+4. **A/B Report**: `scripts/ab_report.py` — reads `results_ab/scores_{strategy}_{metric}.json`, computes per-strategy/per-metric means, picks best strategy per metric, writes `ab_report.md`; `--no-write` prints only.

@@ -27,6 +27,8 @@ class SemanticCache:
         self.tenant_id = tenant_id or config.tenant.tenant_id
         self.client = QdrantClient(host=config.qdrant.host, port=config.qdrant.port)
         self.embeddings = EmbeddingGenerator()
+        self.hits = 0
+        self.misses = 0
 
     def _ensure_collection(self):
         if not self.client.collection_exists(self.collection):
@@ -57,7 +59,9 @@ class SemanticCache:
             score_threshold=self.threshold
         ).points
         if not hits:
+            self.misses += 1
             return None
+        self.hits += 1
         payload = hits[0].payload
         return RAGResponse(
             answer=payload["answer"],
@@ -90,3 +94,7 @@ class SemanticCache:
         """Drop the cache (call after reingest)."""
         if self.client.collection_exists(self.collection):
             self.client.delete_collection(self.collection)
+
+    def hit_rate(self) -> float:
+        total = self.hits + self.misses
+        return self.hits / total if total else 0.0

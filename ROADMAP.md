@@ -542,8 +542,22 @@ docker compose -f docker/docker-compose.yml up --build
 
 Note: new env vars `TENANT_ID`, `CACHE_ENABLED`, `CACHE_THRESHOLD`, `API_KEYS` (comma-separated). `.env` and `data/` are git-ignored — never commit them.
 
-### Phase 3 Enhancements
-1. Self-RAG (adaptive retrieval)
-2. Guardrails for sensitive content
-3. Analytics dashboard
-4. A/B testing framework
+### Phase 3 Enhancements *(implemented 2026-09-16)*
+
+1. **Self-RAG (adaptive retrieval)**
+   Design: `src/selfrag.py` `SelfRag`. After hybrid retrieval + reranking, the reranker's cross-encoder score is attached to docs (`rerank_score` in `src/rerank.py` metadata). If the best rerank score is below `SELF_RAG_MIN_CONFIDENCE` (default 0.3), re-retrieve with a wider k (`SELF_RAG_EXPAND_K`, default 40) and re-rerank once; if the wider pass still can't clear `SELF_RAG_REFUSE_BELOW` (default 0.15), refuse to answer rather than hallucinate on weak context. Wired into `src/rag.py` `RAGPipeline.query()` (only the `full` and `rerank` strategies).
+   Files: `src/selfrag.py` (new), `src/rag.py`, `src/rerank.py`.
+
+2. **Guardrails**
+   Design: `src/guardrails.py` `Guardrails`. Input guard detects prompt-injection patterns ("ignore previous instructions", "system prompt", DAN/jailbreak), PII (SSN, card numbers, emails, phones), and off-topic keywords — blocked queries get a canned refusal response. Output guard refuses generated answers that leak PII or contain botched refusals ("i don't know", "insufficient information"). Wired into `src/rag.py`.
+   Files: `src/guardrails.py` (new), `src/rag.py`.
+
+3. **Analytics dashboard**
+   Design: `app/streamlit_app.py` gains a sidebar `View` radio toggle `Chat | Analytics`. Analytics shows Qdrant chunk count (`sec_filings`), semantic-cache entry count, session cache hit rate (hits/misses tracked in `src/cache.py`), session latency metrics, and A/B evaluation results (renders `data/evaluation/results_ab/ab_report.md`, else `summary.json`, else a hint to run `run_ab.py` + `ab_report.py`).
+   Files: `app/streamlit_app.py`, `src/cache.py`.
+
+4. **A/B testing framework**
+   Design: `scripts/ab_report.py` reads `data/evaluation/results_ab/scores_{strategy}_{metric}.json` produced by `scripts/run_ab.py`, computes per-strategy/per-metric means, picks a best strategy per metric, and writes `ab_report.md` (+ prints to stdout). `--no-write` prints only.
+   Files: `scripts/ab_report.py` (new), `scripts/run_ab.py`.
+
+Note: new env vars `SELF_RAG_ENABLED`, `SELF_RAG_MIN_CONFIDENCE`, `SELF_RAG_REFUSE_BELOW`, `SELF_RAG_EXPAND_K`, `GUARDRAILS_ENABLED`. Verification: module unit checks pass, pytest 5/5, end-to-end query smoke (cache hit + injection blocked) OK. Self-RAG refuse/expansion paths coded but not run against the live LLM/reranker. No score files in `results_ab` yet (only `responses_*`), so `ab_report.py` shows "no scored samples" until a full `run_ab.py` run.

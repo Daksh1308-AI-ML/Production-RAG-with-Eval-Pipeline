@@ -114,6 +114,17 @@ Being built — designed, not yet verified.
 
 New files: `src/cache.py`, `app/api.py`, `scripts/ingest_one.py`. New env vars: `TENANT_ID`, `CACHE_ENABLED`, `CACHE_THRESHOLD`, `API_KEYS`.
 
+## Phase 3 (implemented 2026-09-16)
+
+Built and wired in. Verified: module unit checks pass, pytest 5/5, end-to-end query smoke (cache hit + injection blocked) OK. Self-RAG refuse/expansion paths exist but were NOT run against the live LLM/reranker (deferred). No score files in `results_ab` yet (only `responses_*`), so `ab_report.py` shows "no scored samples" until a full `run_ab` is executed.
+
+1. **Self-RAG (adaptive retrieval)** — `src/selfrag.py` `SelfRag`. Reranker cross-encoder score attached to docs (`rerank_score`). Best score below `SELF_RAG_MIN_CONFIDENCE` (0.3) → re-retrieve with wider `SELF_RAG_EXPAND_K` (40) + re-rerank once; still below `SELF_RAG_REFUSE_BELOW` (0.15) → refuse to answer. Active for `full`/`rerank` strategies in `src/rag.py`.
+2. **Guardrails** — `src/guardrails.py` `Guardrails`. Input guard regex-blocks prompt-injection patterns, PII (SSN, cards, emails, phones), off-topic keywords → canned refusal. Output guard refuses leaked PII / botched refusals. Wired into `src/rag.py`. `GUARDRAILS_ENABLED` (default true).
+3. **Analytics dashboard** — `app/streamlit_app.py` sidebar `View` toggle `Chat | Analytics`: Qdrant chunk count (`sec_filings`), semantic-cache entry count, session cache hit rate (tracked in `src/cache.py`), session latency, A/B results (`ab_report.md` → `summary.json` → run hint).
+4. **A/B testing framework** — `scripts/ab_report.py` reads `results_ab/scores_{strategy}_{metric}.json`, computes per-strategy/per-metric means, picks best strategy per metric, writes `ab_report.md`; `--no-write` prints only.
+
+New files: `src/selfrag.py`, `src/guardrails.py`, `scripts/ab_report.py`. New env vars: `SELF_RAG_ENABLED`, `SELF_RAG_MIN_CONFIDENCE`, `SELF_RAG_REFUSE_BELOW`, `SELF_RAG_EXPAND_K`, `GUARDRAILS_ENABLED`.
+
 ## Known Notes
 - **`src/eval.py` `--dataset` bug FIXED** (2026-09-14): `main()` validated the flag but `load_eval_dataset()` always read `config.eval.eval_dataset_path` — CLI path was ignored (first A/B launch silently evaluated all 103 pairs instead of the 8-pair subset). Fix: `load_eval_dataset(dataset_path=None)`; `main()` passes `args.dataset`. Verified: loads 8 samples from `ab_stratified.json`, pytest 5/5.
 - `scripts/make_ab_subset.py` (untracked) + `data/evaluation/ab_stratified.json` (gitignored) — stratified 8-pair A/B subset, kept for the deferred final testing phase.

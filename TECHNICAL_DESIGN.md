@@ -1142,6 +1142,63 @@ def health() -> dict:
     return {"status": "ok", "qdrant": qdrant_reachable(), "collection": collection_count()}
 ```
 
+### 15. selfrag.py - Self-RAG (Adaptive Retrieval) *(implemented 2026-09-16)*
+
+```python
+"""Confidence-gated adaptive retrieval. Wired into RAGPipeline.query()."""
+
+from typing import Optional
+from .config import config
+
+
+class SelfRag:
+    """Expand retrieval when rerank confidence is low; refuse below a floor."""
+
+    def __init__(self):
+        self.min_confidence = config.selfrag.min_confidence  # SELF_RAG_MIN_CONFIDENCE, 0.3
+        self.refuse_below = config.selfrag.refuse_below      # SELF_RAG_REFUSE_BELOW, 0.15
+        self.expand_k = config.selfrag.expand_k              # SELF_RAG_EXPAND_K, 40
+
+    def should_expand(self, reranked_docs) -> bool:
+        """True if the best rerank_score is below min_confidence."""
+        best = max(d.metadata.get("rerank_score", 1.0) for d in reranked_docs)
+        return best < self.min_confidence
+
+    def should_refuse(self, reranked_docs) -> bool:
+        """True if even the widened pass can't clear the refusal floor."""
+        best = max(d.metadata.get("rerank_score", 1.0) for d in reranked_docs)
+        return best < self.refuse_below
+```
+
+### 16. guardrails.py - Guardrails *(implemented 2026-09-16)*
+
+```python
+"""Input/output guardrails. Wired into RAGPipeline.query()."""
+
+import re
+from .config import config
+
+
+class Guardrails:
+    """Block prompt-injection, PII and off-topic input; refuse bad output."""
+
+    INJECTION = re.compile(r"ignore previous instructions|system prompt|jailbreak|DAN", re.I)
+    PII = re.compile(r"\b\d{3}-\d{2}-\d{4}\b|(?:\d[ -]*){13,16}\b|[\w.+-]+@[\w-]+\.[\w.]+|\b\d{3}[-.)]\d{3}[-.]\d{4}\b")
+    OFF_TOPIC = re.compile(r"weather|sports scores|recipe", re.I)
+    BAD_REFUSAL = re.compile(r"i don'?t know|insufficient information", re.I)
+
+    def __init__(self):
+        self.enabled = config.guardrails.enabled  # GUARDRAILS_ENABLED, true
+
+    def check_input(self, query: str) -> bool:
+        """True if the query passes (no injection / PII / off-topic match)."""
+        return not any(p.search(query) for p in (self.INJECTION, self.PII, self.OFF_TOPIC))
+
+    def check_output(self, answer: str) -> bool:
+        """True if the answer may be returned (no leaked PII / botched refusal)."""
+        return not (self.PII.search(answer) or self.BAD_REFUSAL.search(answer))
+```
+
 ## Configuration Files
 
 ### .env.example
@@ -1172,6 +1229,15 @@ CACHE_THRESHOLD=0.92
 
 # API Gateway Configuration (comma-separated keys)
 API_KEYS=
+
+# Self-RAG (adaptive retrieval) Configuration
+SELF_RAG_ENABLED=true
+SELF_RAG_MIN_CONFIDENCE=0.3
+SELF_RAG_REFUSE_BELOW=0.15
+SELF_RAG_EXPAND_K=40
+
+# Guardrails Configuration
+GUARDRAILS_ENABLED=true
 ```
 
 ### requirements.txt

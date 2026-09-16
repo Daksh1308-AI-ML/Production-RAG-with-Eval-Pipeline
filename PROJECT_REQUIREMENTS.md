@@ -204,6 +204,17 @@ Planned enhancements on top of the MVP, currently in progress (designed, not yet
 
 New env vars: `TENANT_ID`, `CACHE_ENABLED`, `CACHE_THRESHOLD`, `API_KEYS` (comma-separated). `.env` and `data/` are git-ignored — never commit them.
 
+## Phase 3 (implemented 2026-09-16)
+
+Enhancements delivered on top of Phase 2. Verified: module unit checks pass, pytest 5/5, end-to-end query smoke (cache hit + injection blocked). Self-RAG refuse/expansion paths coded but not run against the live LLM/reranker.
+
+1. **Self-RAG (adaptive retrieval)** — `src/selfrag.py` `SelfRag`. Reranker cross-encoder score attached to docs (`rerank_score` in `src/rerank.py`). Best rerank score below `SELF_RAG_MIN_CONFIDENCE` (default 0.3) triggers re-retrieval with wider `SELF_RAG_EXPAND_K` (default 40) and one re-rerank; still below `SELF_RAG_REFUSE_BELOW` (default 0.15) → refuse to answer. Wired into `RAGPipeline.query()` (`full`/`rerank` strategies).
+2. **Guardrails** — `src/guardrails.py` `Guardrails`. Input guard blocks prompt-injection patterns, PII (SSN, cards, emails, phones), off-topic keywords with a canned refusal. Output guard refuses leaked PII or botched refusals. Wired into `src/rag.py`.
+3. **Analytics dashboard** — `app/streamlit_app.py` sidebar `View` toggle `Chat | Analytics`: Qdrant chunk count, semantic-cache entry count, session cache hit rate (tracked in `src/cache.py`), session latency, A/B results (`ab_report.md`, else `summary.json`, else a run hint).
+4. **A/B testing framework** — `scripts/ab_report.py` reads `results_ab/scores_{strategy}_{metric}.json`, computes per-strategy/per-metric means, picks a best strategy per metric, writes `ab_report.md`; `--no-write` prints only.
+
+New files: `src/selfrag.py`, `src/guardrails.py`, `scripts/ab_report.py`. New env vars: `SELF_RAG_ENABLED`, `SELF_RAG_MIN_CONFIDENCE`, `SELF_RAG_REFUSE_BELOW`, `SELF_RAG_EXPAND_K`, `GUARDRAILS_ENABLED`.
+
 ## Glossary
 
 | Term | Definition |
