@@ -288,6 +288,15 @@ print(f'Dataset has {len(data)} QA pairs')
 
 > **DEFERRED** (2026-09-14) — moved to the final testing phase at the end of the project, per owner decision. Eval harness is built + smoke-tested and the 103-pair dataset is validated; the full A/B run is one step away. Judge is OpenRouter free tier (~50 req/day), so the full matrix runs incrementally (or in one night after a one-time $10 top-up → 1000 req/day).
 
+**Completed** (2026-09-15):
+- [x] **Incremental A/B runner** (`scripts/run_ab.py`) — per-sample checkpointing with atomic writes, 3× retry + backoff, `--sleep` pacing, resume-after-crash. Proven against real failures: CUDA segfault recovered on retry #2, 3 judge NoneType errors all recovered, resume in 30s, zero nulls.
+- [x] **Local judge routing** — `LocalJudgeEvaluator` (`src/eval.py`) judges `faithfulness` + `context_recall` via local Ollama `qwen2.5:7b` (`embeddings=None`, safe: ragas only initializes embeddings for `MetricWithEmbeddings`). Zero API quota for those metrics, no embedding co-residency → no 4GB VRAM OOM. `answer_relevancy` + `context_precision` stay on the OpenRouter judge. Cut API calls from 88 → 64/cell.
+- [x] Baseline cell: faithfulness × baseline (8 stratified pairs) → **mean 0.5000** (0.667/1.0/0.5/0.5/0.333/0.0/0.75/0.25)
+
+**Completed** (2026-09-16, final):
+- [x] **Judge model swap** — `nvidia/nemotron-3-super-120b-a12b:free` stopped serving (OpenRouter 404) → pinned `nvidia/nemotron-3.5-lightning:free` (verified live in the OpenRouter model list).
+- [x] **Cache upsert fix** — `run_ab.py` now overwrites a question's previous score entry instead of appending, so null-scored questions are retried on resume without duplicating cache rows (fixed the `9/8` count symptom).
+
 **Tasks**:
 - [ ] Run baseline evaluation (dense-only)
 - [ ] Run hybrid evaluation

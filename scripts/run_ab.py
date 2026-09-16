@@ -63,6 +63,17 @@ def _save_json(path, data):
     tmp.replace(path)
 
 
+def _upsert_sample(samples, record):
+    """Replace any existing entry for the same question, else append.
+
+    Keeps the cache size bounded at len(dataset): a null-scored question is
+    retried on the next run but overwrites its old entry instead of stacking
+    duplicates (the '9/8' symptom from un-deduped nulls).
+    """
+    samples[:] = [s for s in samples if s["question"] != record["question"]]
+    samples.append(record)
+
+
 def generate_responses(strategy, pipe, dataset, out_dir, retries=3):
     path = _resp_path(out_dir, strategy)
     cache = _load_json(path, [])
@@ -127,6 +138,9 @@ def score_metric(strategy, metric, evaluator, local_evaluator, dataset,
     path = _score_path(out_dir, strategy, metric)
     state = _load_json(path, {"samples": []})
     samples = state["samples"]
+    # Upsert semantics keep the cache bounded: questions with a non-null score
+    # are done; null-scored ones are retried on resume but overwrite their old
+    # entry instead of stacking duplicates (the '9/8' symptom).
     scored_qs = {s["question"] for s in samples if s.get("score") is not None}
 
     resp_by_q = {r["question"]: r for r in responses}
@@ -150,7 +164,7 @@ def score_metric(strategy, metric, evaluator, local_evaluator, dataset,
         resp = resp_by_q.get(q, {})
 
         if resp.get("_failed") or resp.get("response") is None:
-            samples.append({"question": q, "score": None})
+            _upsert_sample(samples, {"question": q, "score": None})
             _save_json(path, {"samples": samples})
             n_done = len(samples)
             print(f"  [{strategy}/{metric}] {n_done}/{len(dataset)} "
@@ -199,7 +213,7 @@ def score_metric(strategy, metric, evaluator, local_evaluator, dataset,
                     print(f"  [{strategy}/{metric}] retrying in {wait}s...", flush=True)
                     time.sleep(wait)
 
-        samples.append({"question": q, "score": score})
+        _upsert_sample(samples, {"question": q, "score": score})
         _save_json(path, {"samples": samples})
 
         n_scored = sum(1 for s in samples if s.get("score") is not None)

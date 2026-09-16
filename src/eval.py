@@ -66,7 +66,7 @@ class LocalJudgeEvaluator(RAGEvaluator):
 
     def __init__(self):
         self.judge_llm = ChatOllama(
-            model=config.eval.judge_model,
+            model=config.ollama.llm_model,
             temperature=0.2,
             base_url=config.ollama.base_url,
             format="json",
