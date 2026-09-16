@@ -403,7 +403,7 @@ docker-compose ps
 - [x] Add architecture diagram
 - [x] Document setup instructions
 - [x] Include metrics and results
-- [x] Create demo GIF
+- [x] Add architecture diagrams (assets/images/)
 - [x] Deploy locally via Docker (compose build + run)
 - [x] Final testing
 
@@ -425,7 +425,7 @@ docker compose -f docker/docker-compose.yml up --build
 - [x] Docker deployment working
 - [x] README comprehensive
 - [x] Deployed locally via Docker
-- [x] Demo GIF recorded
+- [x] Architecture diagrams embedded in README
 
 ### Week 4 Metrics
 | Metric | Target | Actual |
@@ -455,7 +455,7 @@ docker compose -f docker/docker-compose.yml up --build
 - [x] Streaming responses
 - [x] A/B testing notebook
 - [x] Failure analysis
-- [x] Demo GIF
+- [x] Architecture diagrams
 
 ### Nice to Have
 - [ ] HyDE retrieval
