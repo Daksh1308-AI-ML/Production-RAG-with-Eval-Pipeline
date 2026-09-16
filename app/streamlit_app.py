@@ -1,7 +1,12 @@
 """Streamlit UI for Production RAG."""
 
 import json
+import sys
+from pathlib import Path
+
 import streamlit as st
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config import config
 from src.chunker import DocumentChunker
